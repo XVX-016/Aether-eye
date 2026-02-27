@@ -1,0 +1,99 @@
+from __future__ import annotations
+
+import base64
+import io
+from time import perf_counter
+
+import cv2
+import numpy as np
+from fastapi import APIRouter, File, UploadFile, HTTPException, Query
+from PIL import Image
+
+from app.schemas.vit_explainability import ViTClassificationResponse, ViTGradCamResponse
+from app.services.vit_service import get_vit_aircraft_pipeline
+
+
+router = APIRouter(prefix="/v1", tags=["vit-explainability"])
+
+
+def _read_image_bgr(file: UploadFile) -> np.ndarray:
+    data = file.file.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="Empty file upload.")
+    arr = np.frombuffer(data, dtype=np.uint8)
+    img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    if img is None:
+        raise HTTPException(status_code=400, detail="Invalid image file.")
+    return img
+
+
+def _heatmap_to_base64_png(heatmap01: np.ndarray, out_w: int, out_h: int) -> str:
+    """
+    heatmap01: float32 [H, W] in [0,1] (usually model grid size)
+    Resizes to out_h/out_w and returns base64 PNG grayscale.
+    """
+    heat = np.clip(heatmap01, 0.0, 1.0).astype(np.float32)
+    heat_resized = cv2.resize(heat, (out_w, out_h), interpolation=cv2.INTER_LINEAR)
+    heat_u8 = np.clip(heat_resized * 255.0, 0, 255).astype(np.uint8)
+    pil_img = Image.fromarray(heat_u8, mode="L")
+    buf = io.BytesIO()
+    pil_img.save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode("utf-8")
+
+
+@router.post(
+    "/aircraft-classify",
+    response_model=ViTClassificationResponse,
+    summary="Classify aircraft variant (ViT fine-tuned on FGVC Aircraft).",
+)
+async def aircraft_classify(
+    image: UploadFile = File(..., description="Input image file (jpeg/png/etc)."),
+) -> ViTClassificationResponse:
+    pipeline = get_vit_aircraft_pipeline()
+    img_bgr = _read_image_bgr(image)
+
+    start = perf_counter()
+    res = pipeline.classify(img_bgr)
+    elapsed_ms = (perf_counter() - start) * 1000.0
+
+    return ViTClassificationResponse(
+        class_id=res.class_id,
+        confidence=res.confidence,
+        inference_time_ms=elapsed_ms,
+        model_name=pipeline.model_name,
+        device_used=pipeline.runtime_device,
+    )
+
+
+@router.post(
+    "/aircraft-gradcam",
+    response_model=ViTGradCamResponse,
+    summary="Generate Grad-CAM heatmap for ViT aircraft classification.",
+)
+async def aircraft_gradcam(
+    image: UploadFile = File(..., description="Input image file (jpeg/png/etc)."),
+    target_class: int | None = Query(
+        default=None,
+        description="Optional class id to explain. If omitted, explains the top-1 prediction.",
+        ge=0,
+    ),
+) -> ViTGradCamResponse:
+    pipeline = get_vit_aircraft_pipeline()
+    img_bgr = _read_image_bgr(image)
+    h, w = img_bgr.shape[:2]
+
+    start = perf_counter()
+    cls, heatmap = pipeline.gradcam(img_bgr, target_class=target_class)
+    elapsed_ms = (perf_counter() - start) * 1000.0
+
+    heatmap_b64 = _heatmap_to_base64_png(heatmap, out_w=w, out_h=h)
+
+    return ViTGradCamResponse(
+        class_id=cls.class_id,
+        confidence=cls.confidence,
+        heatmap_base64_png=heatmap_b64,
+        inference_time_ms=elapsed_ms,
+        model_name=pipeline.model_name,
+        device_used=pipeline.runtime_device,
+    )
+
