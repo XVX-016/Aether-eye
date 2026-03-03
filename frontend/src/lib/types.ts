@@ -20,7 +20,30 @@ export type AircraftDetectionsResponse = {
 
 export type ChangeDetectionResponse = {
   change_score: number;
+  regions?: { type: string; bbox: [number, number, number, number] }[] | null;
   change_mask_base64?: string | null;
+  inference_time_ms?: number | null;
+  model_name?: string | null;
+  device_used?: string | null;
+};
+
+export type AircraftClassificationResponse = {
+  class_id: number;
+  class_name: string;
+  confidence: number;
+  origin_country: string;
+  friend_or_foe: "FRIEND" | "FOE" | "NEUTRAL" | string;
+  inference_time_ms?: number | null;
+  model_name?: string | null;
+  device_used?: string | null;
+};
+
+export type AircraftGradCamResponse = {
+  class_id: number;
+  class_name: string;
+  confidence: number;
+  origin_country: string;
+  heatmap_base64_png: string;
   inference_time_ms?: number | null;
   model_name?: string | null;
   device_used?: string | null;

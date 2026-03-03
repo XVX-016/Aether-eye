@@ -7,12 +7,15 @@ from typing import Tuple
 import cv2
 import numpy as np
 import onnxruntime as ort
+from aether_ml.pipelines.change_semantic import ChangeRegion, extract_change_regions
+from aether_ml.pipelines.region_classifier import RegionClassifier
 
 
 @dataclass
 class ChangeDetectionResult:
     change_score: float
     change_mask: np.ndarray
+    regions: list[ChangeRegion] | None = None
 
 
 class ChangeDetectionOnnxPipeline:
@@ -36,6 +39,7 @@ class ChangeDetectionOnnxPipeline:
 
         self.device = device.lower()
         self.session, self.input_name, self.input_height, self.input_width = self._create_session()
+        self._region_classifier: RegionClassifier | None = None
 
     def _create_session(self) -> tuple[ort.InferenceSession, str, int, int]:
         available_providers = ort.get_available_providers()
@@ -109,7 +113,13 @@ class ChangeDetectionOnnxPipeline:
     def _sigmoid(x: np.ndarray) -> np.ndarray:
         return 1.0 / (1.0 + np.exp(-x))
 
-    def run(self, before_image: np.ndarray, after_image: np.ndarray) -> ChangeDetectionResult:
+    def run(
+        self,
+        before_image: np.ndarray,
+        after_image: np.ndarray,
+        semantic: bool = False,
+        min_area: int = 100,
+    ) -> ChangeDetectionResult:
         x, orig_h, orig_w = self._preprocess_pair(before_image, after_image)
         outputs = self.session.run(None, {self.input_name: x})
 
@@ -131,5 +141,16 @@ class ChangeDetectionOnnxPipeline:
 
         mask = cv2.resize(mask_small, (orig_w, orig_h), interpolation=cv2.INTER_LINEAR)
         change_score = float(mask.mean())
-        return ChangeDetectionResult(change_score=change_score, change_mask=mask)
+        regions: list[ChangeRegion] | None = None
+        if semantic:
+            boxes = extract_change_regions(mask, min_area=min_area)
+            if self._region_classifier is None:
+                self._region_classifier = RegionClassifier(device=self.runtime_device)
+            regions = []
+            for (x1, y1, x2, y2) in boxes:
+                crop = after_image[y1 : y2 + 1, x1 : x2 + 1]
+                region_type = self._region_classifier.classify_crop(crop)
+                regions.append(ChangeRegion(region_type=region_type, bbox=(x1, y1, x2, y2)))
+
+        return ChangeDetectionResult(change_score=change_score, change_mask=mask, regions=regions)
 

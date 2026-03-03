@@ -50,6 +50,45 @@ class Settings(BaseSettings):
         alias="VIT_AIRCRAFT_IMAGE_SIZE",
         description="Input image size for ViT preprocessing.",
     )
+    aircraft_classifier_config_path: str = Field(
+        default="backend/configs/inference/aircraft_classifier.yaml",
+        alias="AIRCRAFT_CLASSIFIER_CONFIG_PATH",
+        description="Path to YAML config describing aircraft classifier checkpoint/architecture.",
+    )
+    change_detector_config_path: str = Field(
+        default="backend/configs/inference/change_detector.yaml",
+        alias="CHANGE_DETECTOR_CONFIG_PATH",
+        description="Path to YAML config describing change detector ONNX and postprocessing.",
+    )
+    change_metrics_path: str = Field(
+        default="experiments/change/run_01/metrics.json",
+        alias="CHANGE_METRICS_PATH",
+        description="Path to persisted change training metrics JSON.",
+    )
+
+    # Dataset roots (Windows defaults)
+    satellite_change_root: str = Field(
+        default="C:/Computing/Aether-eye/ml-core/DATASET/Satellite-Change",
+        alias="SATELLITE_CHANGE_ROOT",
+        description="Root path for satellite change detection dataset.",
+    )
+    aircraft_fgvc_root: str = Field(
+        default="C:/Computing/Aether-eye/ml-core/DATASET/Aircraft",
+        alias="FGVC_AIRCRAFT_ROOT",
+        description="Root path for FGVC Aircraft dataset.",
+    )
+
+    # Runtime Python enforcement
+    backend_python_executable: str = Field(
+        default="C:/mlenv/venv/Scripts/python.exe",
+        alias="BACKEND_PYTHON_EXECUTABLE",
+        description="Expected Python executable path for backend startup on Windows.",
+    )
+    enforce_backend_python: bool = Field(
+        default=True,
+        alias="ENFORCE_BACKEND_PYTHON",
+        description="When true on Windows, fail startup if interpreter is not the expected venv Python.",
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",

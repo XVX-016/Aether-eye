@@ -9,6 +9,8 @@ import numpy as np
 import torch
 
 from aether_ml.models.siamese_unet import SiameseUNetChangeDetector
+from aether_ml.pipelines.change_semantic import extract_change_regions, ChangeRegion
+from aether_ml.pipelines.region_classifier import RegionClassifier
 from contextlib import nullcontext
 
 
@@ -16,6 +18,7 @@ from contextlib import nullcontext
 class ChangeDetectionResult:
     change_score: float
     change_mask: np.ndarray
+    regions: list[ChangeRegion] | None = None
 
 
 class ChangeDetectionPipeline:
@@ -82,7 +85,7 @@ class ChangeDetectionPipeline:
         return tensor
 
     def run(
-        self, before_image: np.ndarray, after_image: np.ndarray
+        self, before_image: np.ndarray, after_image: np.ndarray, semantic: bool = False, min_area: int = 100
     ) -> ChangeDetectionResult:
         """
         Run change detection on a pair of images.
@@ -135,6 +138,17 @@ class ChangeDetectionPipeline:
         count = torch.clamp(count, min=1.0)
         mask = (prob_sum / count).numpy().astype(np.float32)
         change_score = float(mask.mean())
+        regions: list[ChangeRegion] | None = None
 
-        return ChangeDetectionResult(change_score=change_score, change_mask=mask)
+        if semantic:
+            boxes = extract_change_regions(mask, min_area=min_area)
+            classifier = RegionClassifier(device=self.device)
+            region_items: list[ChangeRegion] = []
+            for (x1, y1, x2, y2) in boxes:
+                crop = after_image[y1 : y2 + 1, x1 : x2 + 1]
+                region_type = classifier.classify_crop(crop)
+                region_items.append(ChangeRegion(region_type=region_type, bbox=(x1, y1, x2, y2)))
+            regions = region_items
+
+        return ChangeDetectionResult(change_score=change_score, change_mask=mask, regions=regions)
 

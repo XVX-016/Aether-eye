@@ -1,0 +1,6 @@
+model_path: "C:/Computing/Aether-eye/experiments/aircraft/run_04_convnext_small/best.pt"
+onnx_path: "C:/Computing/Aether-eye/experiments/aircraft/run_04_convnext_small/aircraft_convnext_small.onnx"
+architecture: "convnext_small"
+num_classes: 100
+image_size: 224
+normalization: "imagenet"

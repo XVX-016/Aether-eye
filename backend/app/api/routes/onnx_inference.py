@@ -48,6 +48,7 @@ def _mask_to_base64_png(mask: np.ndarray) -> str:
 )
 async def aircraft_detection(
     image: UploadFile = File(..., description="Input image file (jpeg/png/etc)."),
+    country: str | None = Query(default=None, description="Optional user-selected country."),
 ) -> AircraftDetectionsResponse:
     detector = get_aircraft_detector()
     img_bgr = _read_image_bgr(image)
@@ -81,6 +82,8 @@ async def change_detection(
     before_image: UploadFile = File(..., description="Before image file."),
     after_image: UploadFile = File(..., description="After image file."),
     include_mask: bool = Query(default=False, description="Include base64-encoded PNG mask in response."),
+    semantic: bool = Query(default=False, description="Include semantic region extraction and labels."),
+    country: str | None = Query(default=None, description="Optional user-selected country."),
 ) -> ChangeDetectionResponse:
     detector = get_change_detector()
 
@@ -91,15 +94,36 @@ async def change_detection(
         raise HTTPException(status_code=400, detail="Before and after images must have the same size.")
 
     start = perf_counter()
-    result = detector.run(before_bgr, after_bgr)
+    result = detector.run(before_bgr, after_bgr, semantic=semantic)
     elapsed_ms = (perf_counter() - start) * 1000.0
 
     mask_b64 = _mask_to_base64_png(result.change_mask) if include_mask else None
+    regions = (
+        [
+            {"type": r.region_type, "bbox": [r.bbox[0], r.bbox[1], r.bbox[2], r.bbox[3]]}
+            for r in result.regions
+        ]
+        if result.regions is not None
+        else None
+    )
     return ChangeDetectionResponse(
         change_score=result.change_score,
+        regions=regions,
         change_mask_base64=mask_b64,
         inference_time_ms=elapsed_ms,
         model_name=detector.model_name,
         device_used=detector.runtime_device,
     )
+
+
+@router.post(
+    "/aircraft-detect",
+    response_model=AircraftDetectionsResponse,
+    summary="Alias endpoint for aircraft detection.",
+)
+async def aircraft_detect_alias(
+    image: UploadFile = File(..., description="Input image file (jpeg/png/etc)."),
+    country: str | None = Query(default=None, description="Optional user-selected country."),
+) -> AircraftDetectionsResponse:
+    return await aircraft_detection(image=image, country=country)
 

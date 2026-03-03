@@ -1,14 +1,26 @@
 from __future__ import annotations
 
+import os
+import sys
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import health, inference, onnx_inference, vit_explainability
+from app.api.routes import aircraft_inference, change_inference, health, inference, onnx_inference, vit_explainability
 from app.core.config import get_settings
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    if os.name == "nt" and settings.enforce_backend_python:
+        running = Path(sys.executable).resolve()
+        expected = Path(settings.backend_python_executable).resolve()
+        if str(running).lower() != str(expected).lower():
+            raise RuntimeError(
+                f"Backend must run with {expected}; current interpreter is {running}."
+            )
+
     app = FastAPI(
         title=settings.app_name,
         version="0.1.0",
@@ -29,6 +41,8 @@ def create_app() -> FastAPI:
     app.include_router(inference.router, prefix="/api")
     app.include_router(onnx_inference.router, prefix="/api")
     app.include_router(vit_explainability.router, prefix="/api")
+    app.include_router(aircraft_inference.router, prefix="/api")
+    app.include_router(change_inference.router, prefix="/api")
 
     return app
 

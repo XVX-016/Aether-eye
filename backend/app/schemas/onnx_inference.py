@@ -29,6 +29,10 @@ class AircraftDetectionsResponse(BaseModel):
 
 class ChangeDetectionResponse(BaseModel):
     change_score: float = Field(..., ge=0.0, le=1.0)
+    regions: list[dict] | None = Field(
+        default=None,
+        description="Optional semantic regions with type and bbox when semantic=true.",
+    )
     change_mask_base64: str | None = Field(
         default=None,
         description="Optional base64-encoded PNG (grayscale) of the change probability mask.",

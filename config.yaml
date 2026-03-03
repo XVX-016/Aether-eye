@@ -1,7 +1,7 @@
 satellite_change:
   # Root directory containing before/after images and masks.
   # Override with SATELLITE_CHANGE_ROOT if needed.
-  root: ml-core/DATASET/Satellite-Change
+  root: C:/Computing/Aether-eye/ml-core/DATASET/Satellite-Change
   # Text files listing before/after/mask triplets (relative to `root`).
   # Override with SATELLITE_CHANGE_TRAIN_LIST / SATELLITE_CHANGE_VAL_LIST.
   train_list: train_list.txt
@@ -10,5 +10,5 @@ satellite_change:
 aircraft_fgvc:
   # Root directory for FGVC Aircraft dataset.
   # Override with FGVC_AIRCRAFT_ROOT if needed.
-  root: ml-core/DATASET/Aircraft
+  root: C:/Computing/Aether-eye/ml-core/DATASET/Aircraft
 

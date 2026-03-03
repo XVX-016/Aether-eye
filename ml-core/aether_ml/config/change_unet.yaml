@@ -1,0 +1,10 @@
+model: siamese_unet_resnet34
+image_size: 256
+batch_size: 8
+epochs: 80
+lr: 1e-4
+weight_decay: 0.01
+early_stopping_patience: 10
+amp: true
+loss: bce_dice
+metric_primary: val_f1

@@ -10,6 +10,7 @@ from fastapi import APIRouter, File, UploadFile, HTTPException, Query
 from PIL import Image
 
 from app.schemas.vit_explainability import ViTClassificationResponse, ViTGradCamResponse
+from app.services.geopolitics import classify_friend_foe
 from app.services.vit_service import get_vit_aircraft_pipeline
 
 
@@ -48,6 +49,7 @@ def _heatmap_to_base64_png(heatmap01: np.ndarray, out_w: int, out_h: int) -> str
 )
 async def aircraft_classify(
     image: UploadFile = File(..., description="Input image file (jpeg/png/etc)."),
+    country: str = Query(default="USA", description="User-selected country for geopolitical friend/foe context."),
 ) -> ViTClassificationResponse:
     pipeline = get_vit_aircraft_pipeline()
     img_bgr = _read_image_bgr(image)
@@ -56,9 +58,14 @@ async def aircraft_classify(
     res = pipeline.classify(img_bgr)
     elapsed_ms = (perf_counter() - start) * 1000.0
 
+    friend_or_foe = classify_friend_foe(country, res.origin_country)
+
     return ViTClassificationResponse(
         class_id=res.class_id,
+        class_name=res.class_name,
         confidence=res.confidence,
+        origin_country=res.origin_country,
+        friend_or_foe=friend_or_foe,
         inference_time_ms=elapsed_ms,
         model_name=pipeline.model_name,
         device_used=pipeline.runtime_device,
@@ -83,14 +90,19 @@ async def aircraft_gradcam(
     h, w = img_bgr.shape[:2]
 
     start = perf_counter()
-    cls, heatmap = pipeline.gradcam(img_bgr, target_class=target_class)
+    try:
+        cls, heatmap = pipeline.gradcam(img_bgr, target_class=target_class)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     elapsed_ms = (perf_counter() - start) * 1000.0
 
     heatmap_b64 = _heatmap_to_base64_png(heatmap, out_w=w, out_h=h)
 
     return ViTGradCamResponse(
         class_id=cls.class_id,
+        class_name=cls.class_name,
         confidence=cls.confidence,
+        origin_country=cls.origin_country,
         heatmap_base64_png=heatmap_b64,
         inference_time_ms=elapsed_ms,
         model_name=pipeline.model_name,

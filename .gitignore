@@ -53,6 +53,8 @@ artifacts/
 outputs/
 checkpoints/
 models/
+experiments/
+runs/
 
 # Local runtime
 *.sqlite

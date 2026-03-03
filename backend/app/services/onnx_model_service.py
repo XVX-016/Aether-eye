@@ -11,6 +11,8 @@ from app.core.config import get_settings
 
 @lru_cache
 def get_aircraft_detector() -> AircraftDetectionPipeline:
+    if AircraftDetectionPipeline is None:
+        raise RuntimeError("AircraftDetectionPipeline unavailable. Check ONNX runtime installation.")
     settings = get_settings()
     if not settings.aircraft_detector_onnx_path:
         raise RuntimeError("AIRCRAFT_DETECTOR_ONNX_PATH is not configured.")
@@ -25,6 +27,8 @@ def get_aircraft_detector() -> AircraftDetectionPipeline:
 
 @lru_cache
 def get_change_detector() -> ChangeDetectionOnnxPipeline:
+    if ChangeDetectionOnnxPipeline is None:
+        raise RuntimeError("ChangeDetectionOnnxPipeline unavailable. Check ONNX runtime installation.")
     settings = get_settings()
     if not settings.change_detector_onnx_path:
         raise RuntimeError("CHANGE_DETECTOR_ONNX_PATH is not configured.")

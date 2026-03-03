@@ -1,0 +1,22 @@
+from __future__ import annotations
+
+from pydantic import BaseModel, Field
+
+
+class ChangeInferenceResponse(BaseModel):
+    mask_base64: str = Field(..., description="Base64 PNG binary mask (0/255).")
+    change_ratio: float = Field(..., ge=0.0, le=1.0)
+    changed_pixels: int = Field(..., ge=0)
+    overlay_base64: str | None = Field(default=None, description="Optional base64 PNG overlay over after image.")
+    inference_time_ms: float | None = Field(default=None)
+    model_name: str | None = Field(default=None)
+    device_used: str | None = Field(default=None)
+
+
+class ChangeMetricsResponse(BaseModel):
+    best_epoch: int = Field(..., ge=1)
+    best_val_f1: float = Field(..., ge=0.0, le=1.0)
+    best_val_iou: float = Field(..., ge=0.0, le=1.0)
+    best_val_precision: float = Field(..., ge=0.0, le=1.0)
+    best_val_recall: float = Field(..., ge=0.0, le=1.0)
+    best_val_pixel_accuracy: float = Field(..., ge=0.0, le=1.0)

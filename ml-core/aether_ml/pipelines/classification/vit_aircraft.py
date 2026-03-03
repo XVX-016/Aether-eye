@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Sequence
 
 import numpy as np
 import torch
@@ -17,14 +17,16 @@ from aether_ml.explainability.vit_gradcam import ViTGradCam
 @dataclass
 class ViTClassificationResult:
     class_id: int
+    class_name: str
     confidence: float
+    origin_country: str
 
 
 class ViTAircraftClassifierPipeline:
-    """
-    ViT aircraft classification inference + Grad-CAM explainability.
+    """Aircraft classification inference pipeline for timm backbones.
 
-    Loads a timm Vision Transformer fine-tuned on FGVC Aircraft variants.
+    Backward-compatible class name retained for existing imports/routes.
+    Works with ViT/ConvNeXt/ResNet checkpoints produced by train_aircraft.py.
     """
 
     def __init__(
@@ -37,11 +39,13 @@ class ViTAircraftClassifierPipeline:
     ) -> None:
         self.weights_path = Path(weights_path)
         self.num_classes = int(num_classes)
-        self.model_name = model_name
+        self.model_name = str(model_name)
         self.image_size = int(image_size)
 
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.torch_device = torch.device(self.device)
+
+        self.class_names, self.class_to_country = self._load_aircraft_metadata()
 
         self.model = self._build_model()
         self._load_weights(self.weights_path)
@@ -60,32 +64,58 @@ class ViTAircraftClassifierPipeline:
             ]
         )
 
-        grid_size = self._infer_grid_size()
-        self.gradcam_engine = ViTGradCam(model=self.model, grid_size=grid_size)
+        # Grad-CAM currently supported only for ViT-like patch models in this project.
+        self.gradcam_engine: ViTGradCam | None = None
+        if "vit" in self.model_name.lower():
+            grid_size = self._infer_grid_size()
+            self.gradcam_engine = ViTGradCam(model=self.model, grid_size=grid_size)
 
     def _build_model(self) -> nn.Module:
         return timm.create_model(self.model_name, pretrained=False, num_classes=self.num_classes)
 
+    def _load_aircraft_metadata(self) -> tuple[list[str], dict[str, str]]:
+        metadata_path = Path(__file__).with_name("aircraft_metadata.json")
+        if not metadata_path.is_file():
+            return [], {}
+
+        data = json.loads(metadata_path.read_text(encoding="utf-8"))
+        class_names = list(data.keys())
+        class_to_country = {
+            name: str(meta.get("country", "Unknown"))
+            for name, meta in data.items()
+            if isinstance(meta, dict)
+        }
+        return class_names, class_to_country
+
     def _load_weights(self, path: Path) -> None:
         if not path.is_file():
-            raise FileNotFoundError(f"ViT weights not found at: {path}")
+            raise FileNotFoundError(f"Aircraft classifier weights not found at: {path}")
+
         ckpt = torch.load(str(path), map_location="cpu")
-        state_dict = ckpt.get("state_dict") or ckpt.get("model_state_dict") or ckpt
+        state_dict = (
+            ckpt.get("state_dict")
+            or ckpt.get("model_state_dict")
+            or ckpt.get("model")
+            or ckpt
+        )
         self.model.load_state_dict(state_dict, strict=False)
 
+        # Prefer class names recorded in checkpoint for exact class index mapping.
+        ckpt_names = ckpt.get("class_names") if isinstance(ckpt, dict) else None
+        if isinstance(ckpt_names, list) and ckpt_names:
+            self.class_names = [str(x) for x in ckpt_names]
+
     def _infer_grid_size(self) -> tuple[int, int]:
-        # timm ViT usually has patch_embed.grid_size = (H, W) in patches
         patch_embed = getattr(self.model, "patch_embed", None)
         if patch_embed is not None and hasattr(patch_embed, "grid_size"):
             gs = patch_embed.grid_size
             return int(gs[0]), int(gs[1])
 
-        # Fallback: derive from image_size and patch_size
         patch_size = 16
         if patch_embed is not None and hasattr(patch_embed, "patch_size"):
             ps = patch_embed.patch_size
             patch_size = int(ps[0] if isinstance(ps, (tuple, list)) else ps)
-        g = self.image_size // patch_size
+        g = max(1, self.image_size // patch_size)
         return int(g), int(g)
 
     def _to_pil_rgb(self, image: np.ndarray) -> Image.Image:
@@ -93,8 +123,7 @@ class ViTAircraftClassifierPipeline:
             return Image.fromarray(image).convert("RGB")
         if image.shape[2] == 4:
             return Image.fromarray(image).convert("RGB")
-        # Assume BGR (OpenCV default) -> RGB
-        rgb = image[..., ::-1]
+        rgb = image[..., ::-1]  # BGR -> RGB
         return Image.fromarray(rgb.astype(np.uint8)).convert("RGB")
 
     def _prepare_tensor(self, image: np.ndarray) -> torch.Tensor:
@@ -112,18 +141,47 @@ class ViTAircraftClassifierPipeline:
         logits = self.model(x)
         probs = torch.softmax(logits, dim=1)
         conf, cls = torch.max(probs, dim=1)
-        return ViTClassificationResult(class_id=int(cls.item()), confidence=float(conf.item()))
+        class_id = int(cls.item())
+
+        class_name = (
+            self.class_names[class_id]
+            if 0 <= class_id < len(self.class_names)
+            else f"class_{class_id}"
+        )
+        origin_country = self.class_to_country.get(class_name, "Unknown")
+        return ViTClassificationResult(
+            class_id=class_id,
+            class_name=class_name,
+            confidence=float(conf.item()),
+            origin_country=origin_country,
+        )
 
     def gradcam(
         self,
         image: np.ndarray,
         target_class: int | None = None,
     ) -> tuple[ViTClassificationResult, np.ndarray]:
-        """
-        Returns (classification_result, heatmap_float32 [H, W] in [0, 1]).
-        """
-        x = self._prepare_tensor(image)
-        res = self.gradcam_engine.gradcam(x, target_class=target_class)
-        cls = ViTClassificationResult(class_id=res.class_id, confidence=res.confidence)
-        return cls, res.heatmap
+        """Returns (classification_result, heatmap float32 [H, W] in [0,1])."""
+        if self.gradcam_engine is None:
+            raise RuntimeError(
+                f"Grad-CAM is only supported for ViT models in this pipeline. Current model: {self.model_name}"
+            )
 
+        x = self._prepare_tensor(image)
+        base_cls = self.classify(image)
+        res = self.gradcam_engine.gradcam(x, target_class=target_class)
+        # Use class identity from Grad-CAM target if available.
+        class_id = int(res.class_id)
+        class_name = (
+            self.class_names[class_id]
+            if 0 <= class_id < len(self.class_names)
+            else base_cls.class_name
+        )
+        origin_country = self.class_to_country.get(class_name, "Unknown")
+        cls = ViTClassificationResult(
+            class_id=class_id,
+            class_name=class_name,
+            confidence=float(res.confidence),
+            origin_country=origin_country,
+        )
+        return cls, res.heatmap

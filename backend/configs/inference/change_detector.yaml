@@ -1,0 +1,4 @@
+onnx_path: "C:/Computing/Aether-eye/ml-core/artifacts/change_model_v1/change_model_v1.onnx"
+metrics_path: "C:/Computing/Aether-eye/ml-core/artifacts/change_model_v1/metrics_v1.json"
+threshold: 0.5
+overlay_alpha: 0.4

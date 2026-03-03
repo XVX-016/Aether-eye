@@ -99,3 +99,6 @@ export const Topbar: React.FC<Props> = ({
     </header>
   );
 };
+
+// Backward-compatible alias for older imports.
+export const TopBar = Topbar;
