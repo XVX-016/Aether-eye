@@ -6,8 +6,8 @@ import cv2
 import numpy as np
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 
-from app.schemas.change_inference import ChangeInferenceResponse, ChangeMetricsResponse
-from app.services.change_service import get_change_metrics, predict_change
+from app.schemas.change_inference import ChangeInferenceResponse, ChangeLatencyResponse, ChangeMetricsResponse
+from app.services.change_service import benchmark_change_latency, get_change_metrics, predict_change
 
 
 router = APIRouter(prefix="/v1", tags=["change-inference"])
@@ -60,3 +60,18 @@ async def predict_change_v1(
 )
 async def get_change_metrics_v1() -> ChangeMetricsResponse:
     return ChangeMetricsResponse(**get_change_metrics())
+
+
+@router.get(
+    "/metrics/change/latency",
+    response_model=ChangeLatencyResponse,
+    summary="Benchmark ONNX change model latency over repeated warm runs.",
+)
+async def get_change_latency_v1(
+    runs: int = Query(default=50, ge=1, le=500),
+    input_height: int = Query(default=1024, ge=1, le=4096),
+    input_width: int = Query(default=1024, ge=1, le=4096),
+) -> ChangeLatencyResponse:
+    return ChangeLatencyResponse(
+        **benchmark_change_latency(runs=runs, input_height=input_height, input_width=input_width)
+    )
