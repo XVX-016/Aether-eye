@@ -16,6 +16,7 @@ type Props = {
 };
 
 const SECTION_LABEL: Record<MainSection, string> = {
+    "aircraft-intelligence": "Aircraft Intelligence",
     "aircraft-detection": "Aircraft Surveillance",
     "aircraft-classification": "Aircraft Recognition",
     "change-detection": "Change Intelligence",

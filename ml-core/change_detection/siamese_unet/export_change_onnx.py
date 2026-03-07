@@ -6,7 +6,10 @@ import sys
 
 import torch
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+# Add ml-core to sys.path
+ml_core_dir = Path(__file__).resolve().parent.parent.parent
+if str(ml_core_dir) not in sys.path:
+    sys.path.append(str(ml_core_dir))
 
 from aether_ml.models.siamese_unet_resnet34 import SiameseUNetResNet34
 

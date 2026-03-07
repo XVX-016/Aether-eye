@@ -10,23 +10,14 @@ type Capability = {
 
 const CAPABILITIES: Capability[] = [
   {
-    title: "AIRCRAFT SURVEILLANCE",
-    description: "ONNX-powered target detection and tracking-ready aircraft surveillance.",
+    title: "AIRCRAFT INTELLIGENCE",
+    description: "Unified aircraft pipeline: ONNX target detection followed by fine-grained recognition.",
     points: [
       "YOLOV8 INFERENCE",
       "BOUNDING BOX EXTRACTION",
-      "CONFIDENCE AGGREGATION",
-      "CPU/GPU AUTO ACCELERATION",
-    ],
-  },
-  {
-    title: "AIRCRAFT RECOGNITION",
-    description: "Fine-grained airframe recognition with origin metadata and explainability.",
-    points: [
       "VIT CLASS PREDICTION",
       "ORIGIN COUNTRY ATTRIBUTION",
-      "FRIEND/FOE BACKEND LOGIC",
-      "GRAD-CAM VISUALIZATION",
+      "CPU/GPU AUTO ACCELERATION",
     ],
   },
   {
@@ -37,6 +28,16 @@ const CAPABILITIES: Capability[] = [
       "CONSTRUCTION/TRACK/TERRAIN",
       "MASK OVERLAY CONTROLS",
       "ONNX CUDA INFERENCE",
+    ],
+  },
+  {
+    title: "OPERATIONS DASHBOARD",
+    description: "Central telemetry for inference runs, latency snapshots, and model health.",
+    points: [
+      "LIVE CONFIDENCE PANELS",
+      "SYSTEM METRICS",
+      "MODEL/DEVICE VISIBILITY",
+      "OPS-READY OUTPUT SUMMARIES",
     ],
   },
 ];

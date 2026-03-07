@@ -7,7 +7,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import aircraft_inference, change_inference, health, inference, onnx_inference, vit_explainability
+from app.api.routes import aircraft_inference, change_inference, health, inference, intelligence, onnx_inference, vit_explainability
 from app.core.config import get_settings
 
 
@@ -31,7 +31,8 @@ def create_app() -> FastAPI:
     # Basic CORS: adjust allowed origins as needed.
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+        allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?$",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -43,6 +44,7 @@ def create_app() -> FastAPI:
     app.include_router(vit_explainability.router, prefix="/api")
     app.include_router(aircraft_inference.router, prefix="/api")
     app.include_router(change_inference.router, prefix="/api")
+    app.include_router(intelligence.router, prefix="/api")
 
     return app
 

@@ -1,10 +1,14 @@
-from __future__ import annotations
-
+import sys
 import os
 from pathlib import Path
 from typing import Any, Dict
 
 import yaml
+
+# Add ml-core to sys.path
+ml_core_dir = Path(__file__).resolve().parent.parent.parent
+if str(ml_core_dir) not in sys.path:
+    sys.path.append(str(ml_core_dir))
 
 from aether_ml.config import SiameseChangeConfig
 from aether_ml.training import train_siamese_unet_change
@@ -30,7 +34,7 @@ def main() -> None:
         SATELLITE_CHANGE_VAL_LIST
     - or `config.yaml` in the repo root under `satellite_change.*`
   """
-  repo_root = Path(__file__).resolve().parent
+  repo_root = Path(__file__).resolve().parent.parent.parent.parent
   cfg_yaml = load_config(repo_root / "config.yaml")
   sc_cfg = cfg_yaml.get("satellite_change", {}) or {}
 
@@ -57,6 +61,7 @@ def main() -> None:
     root=root,
     train_list=train_list,
     val_list=val_list,
+    epochs=int(os.environ.get("SATELLITE_CHANGE_EPOCHS", 50)),
   ).resolved()
 
   metrics = train_siamese_unet_change(cfg)

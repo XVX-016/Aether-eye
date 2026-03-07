@@ -1,0 +1,72 @@
+{
+  "api/detect": {
+    "description": "YOLOv8 aircraft detection endpoint.",
+    "request": {
+      "image_path": "string"
+    },
+    "response": {
+      "detections": [
+        {
+          "class": "aircraft",
+          "confidence": 0.92,
+          "bbox": [120, 88, 240, 210],
+          "lat": 25.1983,
+          "lon": 55.2796
+        }
+      ]
+    }
+  },
+  "api/classify": {
+    "description": "ViT fine-grained classification endpoint.",
+    "request": {
+      "image_path": "string",
+      "bbox": [120, 88, 240, 210]
+    },
+    "response": {
+      "class": "F-16",
+      "confidence": 0.95,
+      "metadata": {
+        "engine_type": "jet",
+        "wing_type": "swept"
+      }
+    }
+  },
+  "api/change-detect": {
+    "description": "Siamese U-Net change detection endpoint.",
+    "request": {
+      "image_path_before": "string",
+      "image_path_after": "string"
+    },
+    "response": {
+      "changes": [
+        {
+          "bbox": [300, 300, 400, 400],
+          "confidence": 0.88,
+          "lat": 25.2048,
+          "lon": 55.2708
+        }
+      ]
+    }
+  },
+  "api/events": {
+    "description": "Intelligence event engine endpoint.",
+    "request": {
+      "detections": "list",
+      "changes": "list",
+      "history": "list"
+    },
+    "response": {
+      "events": [
+        {
+          "event_id": "evt_102",
+          "type": "aircraft_arrival",
+          "lat": 25.2048,
+          "lon": 55.2708,
+          "confidence": 0.93,
+          "aircraft_class": "F-16",
+          "timestamp": "2026-03-07T12:00:00Z"
+        }
+      ]
+    }
+  }
+}

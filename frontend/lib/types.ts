@@ -50,6 +50,7 @@ export type AircraftGradCamResponse = {
 };
 
 export type MainSection =
+    | "aircraft-intelligence"
     | "aircraft-detection"
     | "change-detection"
     | "aircraft-classification"

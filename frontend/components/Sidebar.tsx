@@ -9,8 +9,7 @@ type Props = {
 };
 
 const NAV_ITEMS: { key: MainSection; label: string; short: string }[] = [
-    { key: "aircraft-detection", label: "Aircraft Surveillance", short: "Detection" },
-    { key: "aircraft-classification", label: "Aircraft Recognition", short: "Recognition" },
+    { key: "aircraft-intelligence", label: "Aircraft Intelligence", short: "Air Intel" },
     { key: "change-detection", label: "Change Intelligence", short: "Change Intel" },
     { key: "metrics-dashboard", label: "Operations Dashboard", short: "Operations" },
 ];

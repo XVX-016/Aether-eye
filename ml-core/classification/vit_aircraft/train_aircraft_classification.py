@@ -1,10 +1,13 @@
-from __future__ import annotations
-
-import os
+import sys
 from pathlib import Path
 from typing import Any, Dict
 
 import yaml
+
+# Add ml-core to sys.path
+ml_core_dir = Path(__file__).resolve().parent.parent.parent
+if str(ml_core_dir) not in sys.path:
+    sys.path.append(str(ml_core_dir))
 
 from aether_ml.config import FgvcVitConfig
 from aether_ml.training import train_vit_aircraft
@@ -28,7 +31,7 @@ def main() -> None:
         FGVC_AIRCRAFT_ROOT
     - or `config.yaml` in the repo root under `aircraft_fgvc.root`
   """
-  repo_root = Path(__file__).resolve().parent
+  repo_root = Path(__file__).resolve().parent.parent.parent.parent
   cfg_yaml = load_config(repo_root / "config.yaml")
   ac_cfg = cfg_yaml.get("aircraft_fgvc", {}) or {}
 

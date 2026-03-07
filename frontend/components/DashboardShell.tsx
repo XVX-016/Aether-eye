@@ -33,7 +33,7 @@ type DashboardShellProps = {
 };
 
 export const DashboardShell: React.FC<DashboardShellProps> = ({
-    initialSection = "aircraft-detection",
+    initialSection = "aircraft-intelligence",
     consoleMode = true,
 }) => {
     const { country } = useCountry();
@@ -196,13 +196,25 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
 
     /* ── Render ── */
 
+    const isAircraftIntelligence =
+        activeSection === "aircraft-intelligence" || activeSection === "aircraft-detection";
+
     const content = (
         <main className="main-content">
-                    {activeSection === "aircraft-detection" && <AetherHero />}
+                    {consoleMode && isAircraftIntelligence && <AetherHero />}
 
-                    <div className="grid" id="ops-grid">
+                    <div
+                        className={`grid ${!consoleMode &&
+                                (isAircraftIntelligence ||
+                                    activeSection === "aircraft-classification" ||
+                                    activeSection === "change-detection")
+                                ? "grid-single-column"
+                                : ""
+                            }`}
+                        id="ops-grid"
+                    >
                         {/* ── Aircraft Detection ── */}
-                        {activeSection === "aircraft-detection" && (
+                        {isAircraftIntelligence && (
                             <>
                                 <div className="col col-left">
                                     <ImageUploadPanel
@@ -224,26 +236,107 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
                                             >
                                                 {loadingAircraft ? "DETECTING..." : "RUN DETECTION"}
                                             </button>
+                                            <button
+                                                className="btn btn-outline"
+                                                type="button"
+                                                onClick={async () => {
+                                                    if (!aircraftFile) return;
+                                                    setError(null);
+                                                    setLoadingClassification(true);
+                                                    try {
+                                                        const res = await runAircraftClassification(aircraftFile, country);
+                                                        setClassificationResult(res);
+                                                        setSystemMetrics({
+                                                            inference_time_ms: res.inference_time_ms ?? undefined,
+                                                            model_name: res.model_name ?? undefined,
+                                                            device_used: res.device_used ?? undefined,
+                                                            confidence: res.confidence,
+                                                        });
+                                                    } catch (err: any) {
+                                                        setClassificationResult(null);
+                                                        setError(
+                                                            err?.response?.data?.detail ??
+                                                                err?.message ??
+                                                                "Aircraft recognition failed.",
+                                                        );
+                                                    } finally {
+                                                        setLoadingClassification(false);
+                                                    }
+                                                }}
+                                                disabled={!aircraftFile || loadingClassification}
+                                            >
+                                                {loadingClassification ? "RECOGNIZING..." : "RUN RECOGNITION"}
+                                            </button>
                                         </div>
                                     )}
-                                    <DetectionCanvas
-                                        imageUrl={aircraftUrl}
-                                        detections={aircraftDetections}
-                                        loading={loadingAircraft}
-                                    />
-                                </div>
-                                <div className="col col-right">
-                                    <div className="stack">
-                                        <ConfidencePanel
+                                    {aircraftUrl && (
+                                        <DetectionCanvas
+                                            imageUrl={aircraftUrl}
                                             detections={aircraftDetections}
-                                            changeScore={null}
-                                            loadingAircraft={loadingAircraft}
-                                            loadingChange={false}
-                                            error={error}
+                                            loading={loadingAircraft}
                                         />
-                                        <SystemMetrics metrics={systemMetrics} />
-                                    </div>
+                                    )}
+
+                                    {!consoleMode && (
+                                        <>
+                                            <div className="detection-metrics-row">
+                                                <ConfidencePanel
+                                                    detections={aircraftDetections}
+                                                    changeScore={null}
+                                                    loadingAircraft={loadingAircraft}
+                                                    loadingChange={false}
+                                                    error={error}
+                                                />
+                                                <SystemMetrics metrics={systemMetrics} />
+                                            </div>
+                                            <ContentPanel
+                                                title="Recognition Output"
+                                                subtitle="Detected class identity from uploaded airframe."
+                                            >
+                                                {!classificationResult ? (
+                                                    <div className="empty-state small">
+                                                        Run recognition to populate classification output.
+                                                    </div>
+                                                ) : (
+                                                    <div className="classification-result">
+                                                        <div className="classification-row">
+                                                            <span className="classification-key">Aircraft class</span>
+                                                            <span className="classification-value">
+                                                                {classificationResult.class_name}
+                                                            </span>
+                                                        </div>
+                                                        <div className="classification-row">
+                                                            <span className="classification-key">Confidence</span>
+                                                            <span className="classification-value">
+                                                                {(classificationResult.confidence * 100).toFixed(2)}%
+                                                            </span>
+                                                        </div>
+                                                        <div className="classification-row">
+                                                            <span className="classification-key">Origin country</span>
+                                                            <span className="classification-value">
+                                                                {classificationResult.origin_country}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </ContentPanel>
+                                        </>
+                                    )}
                                 </div>
+                                {consoleMode && (
+                                    <div className="col col-right">
+                                        <div className="stack">
+                                            <ConfidencePanel
+                                                detections={aircraftDetections}
+                                                changeScore={null}
+                                                loadingAircraft={loadingAircraft}
+                                                loadingChange={false}
+                                                error={error}
+                                            />
+                                            <SystemMetrics metrics={systemMetrics} />
+                                        </div>
+                                    </div>
+                                )}
                             </>
                         )}
 
@@ -251,7 +344,7 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
                         {activeSection === "change-detection" && (
                             <>
                                 <div className="col col-left">
-                                    <div className="stack">
+                                    <div className="stack change-upload-grid">
                                         <ImageUploadPanel
                                             label="Upload: before image"
                                             helpText="Aligned capture at (t0)."
@@ -277,7 +370,7 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
                                             }}
                                         />
                                         {!consoleMode && (
-                                            <div className="button-row">
+                                            <div className="button-row button-row-span">
                                                 <button
                                                     className="btn btn-primary"
                                                     type="button"
@@ -382,20 +475,35 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
                                             </div>
                                         </div>
                                     </ContentPanel>
+
+                                    {!consoleMode && (
+                                        <div className="detection-metrics-row">
+                                            <ConfidencePanel
+                                                detections={[]}
+                                                changeScore={changeScore}
+                                                loadingAircraft={false}
+                                                loadingChange={loadingChange}
+                                                error={error}
+                                            />
+                                            <SystemMetrics metrics={systemMetrics} />
+                                        </div>
+                                    )}
                                 </div>
 
-                                <div className="col col-right">
-                                    <div className="stack">
-                                        <ConfidencePanel
-                                            detections={[]}
-                                            changeScore={changeScore}
-                                            loadingAircraft={false}
-                                            loadingChange={loadingChange}
-                                            error={error}
-                                        />
-                                        <SystemMetrics metrics={systemMetrics} />
+                                {consoleMode && (
+                                    <div className="col col-right">
+                                        <div className="stack">
+                                            <ConfidencePanel
+                                                detections={[]}
+                                                changeScore={changeScore}
+                                                loadingAircraft={false}
+                                                loadingChange={loadingChange}
+                                                error={error}
+                                            />
+                                            <SystemMetrics metrics={systemMetrics} />
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </>
                         )}
 
@@ -475,52 +583,101 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
                                             </div>
                                         </div>
                                     </ContentPanel>
+                                    {!consoleMode && (
+                                        <div className="detection-metrics-row">
+                                            <ContentPanel
+                                                title="Recognition Output"
+                                                subtitle="Class identity and geopolitical relation output."
+                                            >
+                                                {!classificationResult ? (
+                                                    <div className="empty-state small">No recognition runs yet.</div>
+                                                ) : (
+                                                    <div className="classification-result">
+                                                        <div className="classification-row">
+                                                            <span className="classification-key">Aircraft class</span>
+                                                            <span className="classification-value">
+                                                                {classificationResult.class_name}
+                                                            </span>
+                                                        </div>
+                                                        <div className="classification-row">
+                                                            <span className="classification-key">Confidence</span>
+                                                            <span className="classification-value">
+                                                                {(classificationResult.confidence * 100).toFixed(2)}%
+                                                            </span>
+                                                        </div>
+                                                        <div className="classification-row">
+                                                            <span className="classification-key">Origin country</span>
+                                                            <span className="classification-value">
+                                                                {classificationResult.origin_country}
+                                                            </span>
+                                                        </div>
+                                                        <div className="classification-row">
+                                                            <span className="classification-key">Friend/Foe</span>
+                                                            <span
+                                                                className={`ff-badge ${classificationResult.friend_or_foe === "FRIEND"
+                                                                        ? "ff-friend"
+                                                                        : classificationResult.friend_or_foe === "FOE"
+                                                                            ? "ff-foe"
+                                                                            : "ff-neutral"
+                                                                    }`}
+                                                            >
+                                                                {classificationResult.friend_or_foe}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </ContentPanel>
+                                            <SystemMetrics metrics={systemMetrics} />
+                                        </div>
+                                    )}
                                 </div>
 
-                                <div className="col col-right">
-                                    <ContentPanel
-                                        title="Recognition Output"
-                                        subtitle="Class identity and geopolitical relation output."
-                                    >
-                                        {!classificationResult ? (
-                                            <div className="empty-state small">No recognition runs yet.</div>
-                                        ) : (
-                                            <div className="classification-result">
-                                                <div className="classification-row">
-                                                    <span className="classification-key">Aircraft class</span>
-                                                    <span className="classification-value">
-                                                        {classificationResult.class_name}
-                                                    </span>
+                                {consoleMode && (
+                                    <div className="col col-right">
+                                        <ContentPanel
+                                            title="Recognition Output"
+                                            subtitle="Class identity and geopolitical relation output."
+                                        >
+                                            {!classificationResult ? (
+                                                <div className="empty-state small">No recognition runs yet.</div>
+                                            ) : (
+                                                <div className="classification-result">
+                                                    <div className="classification-row">
+                                                        <span className="classification-key">Aircraft class</span>
+                                                        <span className="classification-value">
+                                                            {classificationResult.class_name}
+                                                        </span>
+                                                    </div>
+                                                    <div className="classification-row">
+                                                        <span className="classification-key">Confidence</span>
+                                                        <span className="classification-value">
+                                                            {(classificationResult.confidence * 100).toFixed(2)}%
+                                                        </span>
+                                                    </div>
+                                                    <div className="classification-row">
+                                                        <span className="classification-key">Origin country</span>
+                                                        <span className="classification-value">
+                                                            {classificationResult.origin_country}
+                                                        </span>
+                                                    </div>
+                                                    <div className="classification-row">
+                                                        <span className="classification-key">Friend/Foe</span>
+                                                        <span
+                                                            className={`ff-badge ${classificationResult.friend_or_foe === "FRIEND"
+                                                                    ? "ff-friend"
+                                                                    : classificationResult.friend_or_foe === "FOE"
+                                                                        ? "ff-foe"
+                                                                        : "ff-neutral"
+                                                                }`}
+                                                        >
+                                                            {classificationResult.friend_or_foe}
+                                                        </span>
+                                                    </div>
                                                 </div>
-                                                <div className="classification-row">
-                                                    <span className="classification-key">Confidence</span>
-                                                    <span className="classification-value">
-                                                        {(classificationResult.confidence * 100).toFixed(2)}%
-                                                    </span>
-                                                </div>
-                                                <div className="classification-row">
-                                                    <span className="classification-key">Origin country</span>
-                                                    <span className="classification-value">
-                                                        {classificationResult.origin_country}
-                                                    </span>
-                                                </div>
-                                                <div className="classification-row">
-                                                    <span className="classification-key">Friend/Foe</span>
-                                                    <span
-                                                        className={`ff-badge ${classificationResult.friend_or_foe === "FRIEND"
-                                                                ? "ff-friend"
-                                                                : classificationResult.friend_or_foe === "FOE"
-                                                                    ? "ff-foe"
-                                                                    : "ff-neutral"
-                                                            }`}
-                                                    >
-                                                        {classificationResult.friend_or_foe}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </ContentPanel>
-                                </div>
+                                            )}
+                                        </ContentPanel>
+                                    </div>
+                                )}
                             </>
                         )}
 
@@ -557,7 +714,7 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
                         )}
                     </div>
 
-                    {consoleMode && activeSection === "aircraft-detection" && (
+                    {consoleMode && isAircraftIntelligence && (
                         <>
                             <CapabilitiesSection />
                             <PhilosophySection />

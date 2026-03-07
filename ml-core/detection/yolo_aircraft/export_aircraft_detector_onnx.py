@@ -1,7 +1,11 @@
-from __future__ import annotations
-
+import sys
 import os
 from pathlib import Path
+
+# Add ml-core to sys.path
+ml_core_dir = Path(__file__).resolve().parent.parent.parent
+if str(ml_core_dir) not in sys.path:
+    sys.path.append(str(ml_core_dir))
 
 from aether_ml.training import export_yolov8_onnx
 
@@ -14,7 +18,7 @@ def main() -> None:
     YOLO_WEIGHTS_PATH   - path to trained YOLOv8 .pt weights (required)
     YOLO_ONNX_OUTPUT_DIR - directory where ONNX export should be written (optional, default: ./artifacts/onnx)
   """
-  repo_root = Path(__file__).resolve().parent
+  repo_root = Path(__file__).resolve().parent.parent.parent.parent
 
   weights_str = os.environ.get("YOLO_WEIGHTS_PATH")
   if not weights_str:

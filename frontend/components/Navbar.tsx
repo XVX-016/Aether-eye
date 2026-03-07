@@ -6,8 +6,7 @@ import { usePathname } from "next/navigation";
 
 const NAV_ITEMS = [
     { label: "HOME", href: "/" },
-    { label: "AIRCRAFT SURVEILLANCE", href: "/detection" },
-    { label: "AIRCRAFT RECOGNITION", href: "/recognition" },
+    { label: "AIRCRAFT INTELLIGENCE", href: "/aircraft-intelligence" },
     { label: "CHANGE INTELLIGENCE", href: "/change-intelligence" },
     { label: "OPERATIONS DASHBOARD", href: "/operations" },
 ];

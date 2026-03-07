@@ -1,6 +1,5 @@
-import { CapabilityPage } from "@/components/CapabilityPage";
+import { redirect } from "next/navigation";
 
 export default function RecognitionPage() {
-    return <CapabilityPage section="aircraft-classification" />;
+    redirect("/aircraft-intelligence");
 }
-

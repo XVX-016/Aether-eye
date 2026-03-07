@@ -60,3 +60,5 @@ runs/
 *.sqlite
 *.db
 
+VisionBasedAircraftDAA/
+
