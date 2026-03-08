@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 from datetime import datetime
 
-# Add ml-core to sys.path
+# Add ml_core to sys.path
 ml_core_dir = Path(__file__).resolve().parent.parent
 if str(ml_core_dir) not in sys.path:
     sys.path.append(str(ml_core_dir))

@@ -5,7 +5,7 @@ Production-ready monorepo for aircraft intelligence and satellite change detecti
 ### Structure
 
 - **backend**: FastAPI APIs and inference services.
-- **ml-core**: PyTorch/ONNX model pipelines and training/export scripts.
+- **ml_core**: PyTorch/ONNX model pipelines and training/export scripts.
 - **frontend**: Next.js UI (home + operations dashboard components).
 
 ### Local Start Commands (Windows)
@@ -27,7 +27,7 @@ Backend (FastAPI):
 
 ```powershell
 cd C:\Computing\Aether-eye\backend
-$env:PYTHONPATH="C:\Computing\Aether-eye\ml-core"
+$env:PYTHONPATH="C:\Computing\Aether-eye\ml_core"
 $env:BACKEND_PYTHON_EXECUTABLE="C:\mlenv\Scripts\python.exe"
 & "C:\mlenv\Scripts\python.exe" -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
@@ -50,7 +50,7 @@ npm run start
 
 ### Notes
 
-- If backend import fails for `aether_ml`, verify `PYTHONPATH` points to `C:\Computing\Aether-eye\ml-core`.
+- If backend import fails for `aether_ml`, verify `PYTHONPATH` points to `C:\Computing\Aether-eye\ml_core`.
 - Backend startup scripts auto-detect Python at `C:\mlenv\Scripts\python.exe` or `C:\mlenv\venv\Scripts\python.exe`.
 - Frontend now uses a built-in Next.js `/api/*` proxy to backend, so you no longer need to set `NEXT_PUBLIC_API_BASE_URL` for local runs.
 
@@ -103,7 +103,7 @@ Download SpaceNet-7 and DOTA using KaggleHub into change-detection dataset root:
 ```powershell
 cd C:\Computing\Aether-eye
 & "C:\mlenv\venv\Scripts\python.exe" .\scripts\download_kaggle_satellite_datasets.py `
-  --target-root .\ml-core\DATASET\Satellite-Change
+  --target-root .\ml_core\DATASET\Satellite-Change
 ```
 
 Note:

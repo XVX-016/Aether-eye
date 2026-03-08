@@ -1,0 +1,2 @@
+dummy_0.png
+dummy_1.png

@@ -68,12 +68,12 @@ class Settings(BaseSettings):
 
     # Dataset roots (Windows defaults)
     satellite_change_root: str = Field(
-        default="C:/Computing/Aether-eye/ml-core/DATASET/Satellite-Change",
+        default="C:/Computing/Aether-eye/ml_core/DATASET/Satellite-Change",
         alias="SATELLITE_CHANGE_ROOT",
         description="Root path for satellite change detection dataset.",
     )
     aircraft_fgvc_root: str = Field(
-        default="C:/Computing/Aether-eye/ml-core/DATASET/Aircraft",
+        default="C:/Computing/Aether-eye/ml_core/DATASET/Aircraft",
         alias="FGVC_AIRCRAFT_ROOT",
         description="Root path for FGVC Aircraft dataset.",
     )

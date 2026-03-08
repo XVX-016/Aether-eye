@@ -71,7 +71,7 @@ A dual-stream approach for monitoring structural evolution:
 ### 4.2 Recommended Repository Structure
 ```text
 aether-eye/
-├── ml-core/
+├── ml_core/
 │   ├── detection/          # YOLOv8 (Aircraft, Ships)
 │   ├── classification/     # ViT (Aircraft variants)
 │   ├── change_detection/   # Siamese Models

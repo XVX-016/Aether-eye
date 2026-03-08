@@ -13,7 +13,7 @@ if (-not $pythonExe) {
     throw "Python executable not found. Expected one of: $($pythonCandidates -join ', ')"
 }
 
-$env:PYTHONPATH = "$repoRoot\ml-core"
+$env:PYTHONPATH = "$repoRoot\ml_core"
 $env:BACKEND_PYTHON_EXECUTABLE = $pythonExe
 
 & $pythonExe -m uvicorn app.main:app --host 127.0.0.1 --port 8000

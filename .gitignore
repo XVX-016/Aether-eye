@@ -37,7 +37,7 @@ Thumbs.db
 *.log
 
 # Datasets / large assets
-ml-core/DATASET/
+ml_core/DATASET/
 **/DATASET/
 **/datasets/
 **/data/

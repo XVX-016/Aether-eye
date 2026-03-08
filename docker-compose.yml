@@ -11,7 +11,7 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - ml-core-sync
+      - ml_core-sync
     restart: unless-stopped
 
   frontend:
@@ -25,8 +25,8 @@ services:
       - api
     restart: unless-stopped
 
-  # Helper container to ensure ml-core is available at build time if needed
-  ml-core-sync:
+  # Helper container to ensure ml_core is available at build time if needed
+  ml_core-sync:
     image: alpine:3.19
     command: ["sh", "-c", "mkdir -p /opt && sleep 1"]
     restart: "no"

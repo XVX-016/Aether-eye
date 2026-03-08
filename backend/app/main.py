@@ -9,10 +9,23 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import aircraft_inference, change_inference, health, inference, intelligence, onnx_inference, vit_explainability
 from app.core.config import get_settings
+from app.database.session import init_db
+import asyncio
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    app = FastAPI(
+        title=settings.app_name,
+        version="0.1.0",
+        docs_url="/docs",
+        redoc_url="/redoc",
+    )
+
+    @app.on_event("startup")
+    async def on_startup():
+        await init_db()
+
     if os.name == "nt" and settings.enforce_backend_python:
         running = Path(sys.executable).resolve()
         expected = Path(settings.backend_python_executable).resolve()
@@ -20,13 +33,6 @@ def create_app() -> FastAPI:
             raise RuntimeError(
                 f"Backend must run with {expected}; current interpreter is {running}."
             )
-
-    app = FastAPI(
-        title=settings.app_name,
-        version="0.1.0",
-        docs_url="/docs",
-        redoc_url="/redoc",
-    )
 
     # Basic CORS: adjust allowed origins as needed.
     app.add_middleware(
