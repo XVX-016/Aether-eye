@@ -7,6 +7,7 @@ Production-ready monorepo for aircraft intelligence and satellite change detecti
 - **backend**: FastAPI APIs and inference services.
 - **ml_core**: PyTorch/ONNX model pipelines and training/export scripts.
 - **frontend**: Next.js UI (home + operations dashboard components).
+- **ml_inference**: Placeholder for unified inference runners (current pipelines live in backend + ml_core).
 
 ### Local Start Commands (Windows)
 
@@ -53,6 +54,7 @@ npm run start
 - If backend import fails for `aether_ml`, verify `PYTHONPATH` points to `C:\Computing\Aether-eye\ml_core`.
 - Backend startup scripts auto-detect Python at `C:\mlenv\Scripts\python.exe` or `C:\mlenv\venv\Scripts\python.exe`.
 - Frontend now uses a built-in Next.js `/api/*` proxy to backend, so you no longer need to set `NEXT_PUBLIC_API_BASE_URL` for local runs.
+- Intelligence processing is now wired to actual ONNX change detection + YOLO aircraft detection/classification. Use the `/api/intelligence/process` endpoint with image paths on disk and optional `geo_bounds` for lat/lon mapping.
 
 ### Stanford VisionBasedAircraftDAA Integration
 
@@ -104,6 +106,14 @@ Download SpaceNet-7 and DOTA using KaggleHub into change-detection dataset root:
 cd C:\Computing\Aether-eye
 & "C:\mlenv\venv\Scripts\python.exe" .\scripts\download_kaggle_satellite_datasets.py `
   --target-root .\ml_core\DATASET\Satellite-Change
+```
+
+Add extra Kaggle datasets (format `name=kaggle_id`):
+
+```powershell
+& "C:\mlenv\venv\Scripts\python.exe" .\scripts\download_kaggle_satellite_datasets.py `
+  --target-root .\ml_core\DATASET\Satellite-Change `
+  --dataset levir=levirmcd/your-kaggle-id-here
 ```
 
 Note:

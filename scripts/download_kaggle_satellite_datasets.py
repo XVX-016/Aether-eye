@@ -29,7 +29,31 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Force download even if destination already exists.",
     )
+    p.add_argument(
+        "--dataset",
+        action="append",
+        default=[],
+        help="Additional Kaggle dataset to download. Format: name=kaggle_id or kaggle_id.",
+    )
     return p.parse_args()
+
+
+def _parse_dataset_args(entries: list[str]) -> dict[str, str]:
+    datasets: dict[str, str] = {}
+    for raw in entries:
+        if not raw:
+            continue
+        if "=" in raw:
+            name, kaggle_id = raw.split("=", 1)
+            name = name.strip()
+            kaggle_id = kaggle_id.strip()
+            if name and kaggle_id:
+                datasets[name] = kaggle_id
+        else:
+            kaggle_id = raw.strip()
+            if kaggle_id:
+                datasets[kaggle_id.split("/")[-1]] = kaggle_id
+    return datasets
 
 
 def download_with_hub(kaggle_id: str, dest_path: Path, force: bool = False) -> bool:
@@ -99,11 +123,12 @@ def main() -> None:
     args = parse_args()
     repo_root = Path(__file__).resolve().parent.parent
     target_root = (repo_root / args.target_root).resolve()
-    
+
     datasets = {
         "spacenet": "amerii/spacenet-7-multitemporal-urban-development",
         "dota": "chandlertimm/dota-data",
     }
+    datasets.update(_parse_dataset_args(args.dataset))
 
     for name, kaggle_id in datasets.items():
         dest = target_root / name

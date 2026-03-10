@@ -14,7 +14,7 @@ from tqdm import tqdm
 from aether_ml.config import SiameseChangeConfig
 from aether_ml.datasets import MultiTemporalChangeDataset
 from aether_ml.models.siamese_unet import SiameseUNetChangeDetector
-from aether_ml.evaluation.metrics import HybridLoss
+from aether_ml.evaluation.metrics import HybridLoss, FocalTverskyLoss, HybridTverskyLoss
 from aether_ml.models.factory import create_model
 
 
@@ -31,13 +31,7 @@ class PairedTransformTrain:
         self.image_size = image_size
 
     def __call__(self, before, after, mask):
-        # 1. Random Crop BEFORE resize for spatial invariance
-        # Ensure image is large enough, or fallback
-        if before.height > 224 and before.width > 224:
-            i, j, h, w = T.RandomCrop.get_params(before, output_size=(224, 224))
-            before = F.crop(before, i, j, h, w)
-            after = F.crop(after, i, j, h, w)
-            mask = F.crop(mask, i, j, h, w)
+        # Random crop removed per user request for LEVIR-CD full-scene context
 
         # 2. Random horizontal flip
         if random.random() > 0.5:
@@ -58,22 +52,22 @@ class PairedTransformTrain:
             after = F.rotate(after, rot)
             mask = F.rotate(mask, rot)
 
-        # 5. Color Jitter (images only)
-        if random.random() < 0.8:
-            brightness = random.uniform(0.8, 1.2)
-            contrast = random.uniform(0.8, 1.2)
-            saturation = random.uniform(0.8, 1.2)
-            hue = random.uniform(-0.1, 0.1)
-            
-            before = F.adjust_brightness(before, brightness)
-            before = F.adjust_contrast(before, contrast)
-            before = F.adjust_saturation(before, saturation)
-            before = F.adjust_hue(before, hue)
-            
-            after = F.adjust_brightness(after, brightness)
-            after = F.adjust_contrast(after, contrast)
-            after = F.adjust_saturation(after, saturation)
-            after = F.adjust_hue(after, hue)
+        # 5. Color Jitter (images only) DISABLED to maintain radiometric consistency
+        # if random.random() < 0.8:
+        #     brightness = random.uniform(0.8, 1.2)
+        #     contrast = random.uniform(0.8, 1.2)
+        #     saturation = random.uniform(0.8, 1.2)
+        #     hue = random.uniform(-0.1, 0.1)
+        #     
+        #     before = F.adjust_brightness(before, brightness)
+        #     before = F.adjust_contrast(before, contrast)
+        #     before = F.adjust_saturation(before, saturation)
+        #     before = F.adjust_hue(before, hue)
+        #     
+        #     after = F.adjust_brightness(after, brightness)
+        #     after = F.adjust_contrast(after, contrast)
+        #     after = F.adjust_saturation(after, saturation)
+        #     after = F.adjust_hue(after, hue)
 
         # Resize to fixed size (e.g., back to 256)
         before = F.resize(before, [self.image_size, self.image_size], interpolation=InterpolationMode.BILINEAR)
@@ -174,20 +168,20 @@ def _create_model_from_factory(cfg: SiameseChangeConfig, device: torch.device) -
     return model
 
 
-def _compute_iou(logits: torch.Tensor, targets: torch.Tensor, threshold: float = 0.5, eps: float = 1e-6) -> float:
+def _compute_iou(logits: torch.Tensor, mask: torch.Tensor, threshold: float = 0.3, eps: float = 1e-6) -> float:
     """
     Compute mean IoU over a batch.
     logits: [B, 1, H, W]
-    targets: [B, 1, H, W]
+    mask: [B, 1, H, W]
     """
     probs = torch.sigmoid(logits)
     preds = (probs > threshold).float()
 
     preds_flat = preds.view(preds.size(0), -1)
-    targets_flat = targets.view(targets.size(0), -1)
+    mask_flat = mask.view(mask.size(0), -1)
 
-    intersection = (preds_flat * targets_flat).sum(dim=1)
-    union = preds_flat.sum(dim=1) + targets_flat.sum(dim=1) - intersection
+    intersection = (preds_flat * mask_flat).sum(dim=1)
+    union = preds_flat.sum(dim=1) + mask_flat.sum(dim=1) - intersection
 
     iou = (intersection + eps) / (union + eps)
     return iou.mean().item()
@@ -201,6 +195,8 @@ def _run_epoch(
     device: torch.device,
     scaler: torch.cuda.amp.GradScaler | None = None,
     train: bool = True,
+    epoch: int = 0,
+    total_epochs: int = 0,
 ) -> Tuple[float, float]:
     """
     Run one epoch and return (mean_loss, mean_iou).
@@ -215,14 +211,15 @@ def _run_epoch(
     running_iou = 0.0
     total_batches = 0
 
-    for before, after, mask in tqdm(loader, desc="train" if train else "val", leave=False):
+    desc = f"Epoch {epoch}/{total_epochs} [{'train' if train else 'val'}]"
+    for before, after, mask in tqdm(loader, desc=desc, leave=False):
         before = before.to(device, non_blocking=True)
         after = after.to(device, non_blocking=True)
         mask = mask.to(device, non_blocking=True)
 
         cfg_model_type = getattr(model, "model_type", None) # Fallback is handled by instance check
         
-        with torch.cuda.amp.autocast(enabled=scaler is not None):
+        with torch.amp.autocast('cuda', enabled=scaler is not None):
             with torch.set_grad_enabled(train):
                 # If the model is a ResNet34 Siamese U-Net (which requires dual inputs)
                 if hasattr(model, 'stem') or 'resnet' in str(type(model)).lower():
@@ -234,6 +231,7 @@ def _run_epoch(
                 loss = criterion(logits, mask)
 
         if train:
+            optimizer.zero_grad(set_to_none=True)
             if scaler is not None:
                 scaler.scale(loss).backward()
                 # Unscales the gradients of optimizer's assigned params in-place
@@ -274,25 +272,47 @@ def train_siamese_unet_change(cfg: SiameseChangeConfig) -> Dict[str, float]:
     train_loader, val_loader = _create_dataloaders(cfg)
     model = _create_model_from_factory(cfg, device)
 
-    criterion = HybridLoss(bce_weight=0.6, dice_weight=0.4)
+    criterion = HybridTverskyLoss(bce_weight=0.5, tversky_weight=0.5)
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=cfg.learning_rate,
         weight_decay=cfg.weight_decay,
     )
 
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        optimizer,
-        T_max=cfg.epochs,
-    )
-
-    scaler = torch.cuda.amp.GradScaler() if device.type == 'cuda' else None
+    scaler = torch.amp.GradScaler('cuda') if device.type == 'cuda' else None
 
     cfg.output_dir.mkdir(parents=True, exist_ok=True)
     best_val_iou = 0.0
     best_model_path: Path | None = None
+    start_epoch = 0
 
-    for epoch in range(cfg.epochs):
+    # Auto-resume from previous latest checkpoint if it exists (else best)
+    latest_path = cfg.output_dir / "siamese_unet_change_latest.pt"
+    best_path = cfg.output_dir / "siamese_unet_change_best.pt"
+    resume_path = latest_path if latest_path.exists() else (best_path if best_path.exists() else None)
+    
+    if resume_path:
+        print(f"Resuming training from checkpoint: {resume_path}")
+        checkpoint = torch.load(resume_path, map_location=device, weights_only=False)
+        model.load_state_dict(checkpoint["model_state_dict"])
+        if "optimizer_state_dict" in checkpoint:
+            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+            for group in optimizer.param_groups:
+                group['initial_lr'] = cfg.learning_rate
+        start_epoch = checkpoint.get("epoch", 0) + 1
+        best_val_iou = checkpoint.get("best_val_iou", checkpoint.get("val_iou", 0.0))
+        print(f"Resumed faithfully at Epoch {start_epoch} with Val IoU: {checkpoint.get('val_iou', 0.0):.4f}")
+
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        mode='max',
+        factor=0.5,
+        patience=12,
+    )
+    if resume_path and "scheduler_state_dict" in checkpoint:
+        scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+
+    for epoch in range(start_epoch, cfg.epochs):
         train_loss, train_iou = _run_epoch(
             model=model,
             loader=train_loader,
@@ -301,6 +321,8 @@ def train_siamese_unet_change(cfg: SiameseChangeConfig) -> Dict[str, float]:
             device=device,
             scaler=scaler,
             train=True,
+            epoch=epoch,
+            total_epochs=cfg.epochs,
         )
 
         val_loss, val_iou = _run_epoch(
@@ -311,9 +333,24 @@ def train_siamese_unet_change(cfg: SiameseChangeConfig) -> Dict[str, float]:
             device=device,
             scaler=scaler,
             train=False,
+            epoch=epoch,
+            total_epochs=cfg.epochs,
         )
 
-        scheduler.step()
+        scheduler.step(val_iou)
+        
+        current_lr = optimizer.param_groups[0]['lr']
+        print(f"Epoch [{epoch}/{cfg.epochs}] Complete | LR: {current_lr:.2e} | Train Loss: {train_loss:.4f} | Val IoU: {val_iou:.4f}")
+
+        # Always save latest
+        latest_model_path = cfg.output_dir / "siamese_unet_change_latest.pt"
+        torch.save({
+            "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+            "epoch": epoch,
+            "val_iou": val_iou,
+            "best_val_iou": max(val_iou, best_val_iou),
+        }, latest_model_path)
 
         if cfg.save_best and val_iou > best_val_iou:
             best_val_iou = val_iou
@@ -321,6 +358,7 @@ def train_siamese_unet_change(cfg: SiameseChangeConfig) -> Dict[str, float]:
             torch.save(
                 {
                     "model_state_dict": model.state_dict(),
+                    "optimizer_state_dict": optimizer.state_dict(),
                     "epoch": epoch,
                     "val_iou": val_iou,
                 },

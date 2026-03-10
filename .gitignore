@@ -35,6 +35,11 @@ Thumbs.db
 .env.*
 
 *.log
+debug_train_output.txt
+stderr.txt
+
+# Local outputs
+output/
 
 # Datasets / large assets
 ml_core/DATASET/

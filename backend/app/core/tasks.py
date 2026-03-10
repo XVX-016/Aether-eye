@@ -32,30 +32,35 @@ def get_job(job_id: str) -> Optional[JobStatus]:
 
 from app.database.session import async_session
 from app.database.models import IntelligenceEvent as DBEvent
-import uuid
+from app.services.intelligence_service import GeoBounds, process_intelligence_paths, persist_events
 
-async def process_satellite_intelligence_task(job_id: str, image_before_path: str, image_after_path: str):
+async def process_satellite_intelligence_task(
+    job_id: str,
+    image_before_path: str | None,
+    image_after_path: str | None,
+    geo_bounds: GeoBounds | None = None,
+    run_change_detection: bool = True,
+    run_aircraft_detection: bool = True,
+    max_detections: int = 25,
+    use_classifier_onnx: bool = False,
+):
     """
     Background task to process satellite intelligence.
     """
     try:
         update_job(job_id, status="processing", progress=0.1)
-        
-        # Real integration: 
-        # 1. Call tiling engine + inference
-        # 2. Extract events
-        
-        import time
-        for i in range(2, 6):
-            time.sleep(1) # Simulate tiling/inference
-            update_job(job_id, progress=i/10)
-            
-        # Synthetic events for demonstration, mapped to spatial coordinates
-        events_data = [
-            {"event_id": f"evt_{uuid.uuid4().hex[:8]}", "type": "aircraft_arrival", "lat": 25.201, "lon": 55.269, "confidence": 0.93, "priority": "HIGH"},
-            {"event_id": f"evt_{uuid.uuid4().hex[:8]}", "type": "construction_change", "lat": 25.210, "lon": 55.280, "confidence": 0.82, "priority": "MEDIUM"}
-        ]
-        
+
+        result = process_intelligence_paths(
+            image_before_path,
+            image_after_path,
+            geo_bounds=geo_bounds,
+            run_change_detection=run_change_detection,
+            run_aircraft_detection=run_aircraft_detection,
+            max_detections=max_detections,
+            use_classifier_onnx=use_classifier_onnx,
+        )
+        events_data = persist_events(result["events"])
+
         # Save to DB
         async with async_session() as session:
             for ev in events_data:
@@ -67,10 +72,20 @@ async def process_satellite_intelligence_task(job_id: str, image_before_path: st
                     confidence=ev["confidence"],
                     priority=ev["priority"]
                 )
+                if "metadata_json" in ev:
+                    db_event.metadata_json = ev["metadata_json"]
                 session.add(db_event)
             await session.commit()
             
-        update_job(job_id, status="completed", progress=1.0, result={"events_count": len(events_data)})
+        update_job(
+            job_id,
+            status="completed",
+            progress=1.0,
+            result={
+                "events_count": len(events_data),
+                "summary": result.get("summary", {}),
+            },
+        )
         
     except Exception as e:
         update_job(job_id, status="failed", error=str(e))

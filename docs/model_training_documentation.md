@@ -6,6 +6,8 @@ This document provides a comprehensive overview of the model architectures, inte
 
 Aether-Eye is a professional-grade satellite intelligence platform designed to transform raw imagery into actionable insights. It mirrors the capabilities of industry leaders like Maxar and Palantir by integrating detection, classification, and change analysis into a single geospatial pipeline.
 
+This project is moving toward a global monitoring and scanning intelligence system by unifying aircraft detection/classification with multi-temporal change detection, and exposing the pipeline through production API services.
+
 ### Core Intelligence Capabilities:
 - **Aircraft Intelligence**: A multi-stage pipeline that detects aircraft and classifies their specific models (variants).
 - **Change Intelligence**: Temporal analysis of building and infrastructure changes between two satellite captures.
@@ -33,6 +35,13 @@ A dual-stream approach for monitoring structural evolution:
 1.  **Dual Input**: Accepts "Before" and "After" status imagery.
 2.  **Siamese Analysis**: Extracts features from both and identifies pixel-level differences.
 3.  **Impact Quantification**: Calculates changed area (%) and identifies affected structures.
+
+### 2.3 Intelligence Orchestration (Operational)
+The backend now includes an asynchronous intelligence job runner that executes:
+- **Change Detection (Siamese U-Net ONNX)** on before/after imagery.
+- **Aircraft Detection (YOLOv8 ONNX)** on latest imagery.
+- **Optional Classification (ViT)** on detected aircraft crops.
+Results are stored as persistent intelligence events for the operations dashboard.
 
 ---
 
@@ -124,6 +133,7 @@ This section tracks the progress toward the full **Aether-Eye Product Vision**.
     - [x] **Data Conversion**: xView/Stanford to YOLOv8 label converters.
 - **Deployment**:
     - [x] **Model Export**: ONNX export for edge/web integration.
+    - [x] **Backend Intelligence Job**: Asynchronous pipeline that runs change detection + aircraft detection and persists events.
 
 ### 7.2 Model Training Status (In-Progress/Pending)
 - **[PENDING] Multi-Dataset Training**:

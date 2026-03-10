@@ -31,7 +31,7 @@ def convert_to_yolo():
     processed_count = 0
     
     for filename, group in grouped:
-        src_image = images_dir / filename
+        src_image = images_dir / f"{filename}.jpg"
         if not src_image.exists():
             missing_count += 1
             continue
@@ -41,8 +41,8 @@ def convert_to_yolo():
         if split not in ["train", "val", "test"]:
             split = "train"  # Fallback
             
-        dst_image = out_dir / "images" / split / filename
-        dst_label = out_dir / "labels" / split / f"{Path(filename).stem}.txt"
+        dst_image = out_dir / "images" / split / f"{filename}.jpg"
+        dst_label = out_dir / "labels" / split / f"{filename}.txt"
         
         # Copy image
         if not dst_image.exists():

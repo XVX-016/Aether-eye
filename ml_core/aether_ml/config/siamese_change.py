@@ -11,12 +11,12 @@ class SiameseChangeConfig:
     """
 
     # Data
-    root: Path
+    root: Path = Path("C:/Computing/Aether-eye/data/processed/change_detection")
     train_list: Path = Path("train_list.txt")
     val_list: Path = Path("val_list.txt")
     image_size: int = 256
-    batch_size: int = 8
-    num_workers: int = 4
+    batch_size: int = 4
+    num_workers: int = 2
 
     # Model
     model_type: str = "resnet34_unet"
@@ -33,14 +33,14 @@ class SiameseChangeConfig:
     save_best: bool = True
 
     def resolved(self) -> "SiameseChangeConfig":
-        resolved_root = self.root.expanduser().resolve()
+        resolved_root = Path(self.root).expanduser().resolve()
         
         # If lists are relative (e.g. "train_list.txt"), resolve them against root
-        resolved_train = self.train_list.expanduser()
+        resolved_train = Path(self.train_list)
         if not resolved_train.is_absolute():
             resolved_train = resolved_root / resolved_train
             
-        resolved_val = self.val_list.expanduser()
+        resolved_val = Path(self.val_list)
         if not resolved_val.is_absolute():
             resolved_val = resolved_root / resolved_val
 
