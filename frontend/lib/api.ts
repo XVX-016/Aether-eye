@@ -62,18 +62,32 @@ export async function runChangeDetection(
     const maybeCountryQuery = country ? `country=${encodeURIComponent(country)}` : "";
     const maybeSemanticQuery = `semantic=${semantic ? "true" : "false"}`;
 
-    const primary = await postWithFallback<any>(
-        [
-            `/v1/change-detection?${includeMaskParam}${countryParam}${semanticParam}`,
-            `/v1/predict/change?include_overlay=${includeMask ? "true" : "false"}`,
-            `/v1/change-detection?${includeMaskParam}${maybeCountryQuery ? `&${maybeCountryQuery}` : ""}${maybeSemanticQuery ? `&${maybeSemanticQuery}` : ""}`,
-        ],
-        form,
-    );
+    const endpoints = semantic
+        ? [
+              `/v1/change-detection?${includeMaskParam}${maybeCountryQuery ? `&${maybeCountryQuery}` : ""}${maybeSemanticQuery ? `&${maybeSemanticQuery}` : ""}&debug=true`,
+              `/v1/predict/change?include_overlay=${includeMask ? "true" : "false"}`,
+          ]
+        : [
+              `/v1/predict/change?include_overlay=${includeMask ? "true" : "false"}`,
+              `/v1/change-detection?${includeMaskParam}${maybeCountryQuery ? `&${maybeCountryQuery}` : ""}${maybeSemanticQuery ? `&${maybeSemanticQuery}` : ""}&debug=true`,
+          ];
+
+    const primary = await postWithFallback<any>(endpoints, form);
 
     // Normalize legacy/new schema variants into the frontend type.
     if (typeof primary?.change_score === "number") {
-        return primary as ChangeDetectionResponse;
+        return {
+            change_score: primary.change_score,
+            regions: primary?.regions ?? [],
+            change_mask_base64:
+                primary?.change_mask_base64 ?? primary?.prob_mask_base64 ?? primary?.mask_base64 ?? null,
+            overlay_base64: primary?.overlay_base64 ?? null,
+            changed_pixels: primary?.changed_pixels ?? null,
+            debug: primary?.debug ?? null,
+            inference_time_ms: primary?.inference_time_ms ?? null,
+            model_name: primary?.model_name ?? null,
+            device_used: primary?.device_used ?? null,
+        } satisfies ChangeDetectionResponse;
     }
 
     return {
@@ -82,7 +96,11 @@ export async function runChangeDetection(
                 ? primary.change_ratio
                 : 0,
         regions: primary?.regions ?? [],
-        change_mask_base64: primary?.change_mask_base64 ?? primary?.mask_base64 ?? null,
+        change_mask_base64:
+            primary?.change_mask_base64 ?? primary?.prob_mask_base64 ?? primary?.mask_base64 ?? null,
+        overlay_base64: primary?.overlay_base64 ?? null,
+        changed_pixels: primary?.changed_pixels ?? null,
+        debug: primary?.debug ?? null,
         inference_time_ms: primary?.inference_time_ms ?? null,
         model_name: primary?.model_name ?? null,
         device_used: primary?.device_used ?? null,
@@ -108,6 +126,15 @@ export async function runAircraftGradCam(file: File, country?: string) {
     const countryParam = country ? `?country=${encodeURIComponent(country)}` : "";
     return postWithFallback<AircraftGradCamResponse>(
         [`/v1/aircraft-gradcam${countryParam}`],
+        form,
+    );
+}
+
+export async function fetchImagePreview(file: File) {
+    const form = new FormData();
+    form.append("image", file);
+    return postWithFallback<{ width: number; height: number; png_base64: string }>(
+        ["/v1/preview-image"],
         form,
     );
 }

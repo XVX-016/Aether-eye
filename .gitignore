@@ -37,6 +37,7 @@ Thumbs.db
 *.log
 debug_train_output.txt
 stderr.txt
+response.json
 
 # Local outputs
 output/

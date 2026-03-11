@@ -13,6 +13,8 @@ type Props = {
     loadingAircraft: boolean;
     loadingChange: boolean;
     error: string | null;
+    aircraftActionLabel?: string;
+    aircraftBusyLabel?: string;
 };
 
 const SECTION_LABEL: Record<MainSection, string> = {
@@ -32,7 +34,17 @@ export const Topbar: React.FC<Props> = ({
     loadingAircraft,
     loadingChange,
     error,
+    aircraftActionLabel,
+    aircraftBusyLabel,
 }) => {
+    const resolvedActionLabel =
+        aircraftActionLabel ??
+        (activeSection === "aircraft-intelligence"
+            ? "RUN DETECTION + RECOGNITION"
+            : "RUN DETECTION");
+    const resolvedBusyLabel =
+        aircraftBusyLabel ??
+        (activeSection === "aircraft-intelligence" ? "ANALYZING..." : "DETECTING...");
     const { country, setCountry, options } = useCountry();
     const busy = loadingAircraft || loadingChange;
     const systemLabel = error ? "DEGRADED" : busy ? "ACTIVE" : "IDLE";
@@ -88,7 +100,7 @@ export const Topbar: React.FC<Props> = ({
                     onClick={onRunAircraft}
                     disabled={!canRunAircraft || loadingAircraft}
                 >
-                    {loadingAircraft ? "DETECTING..." : "RUN DETECTION"}
+                    {loadingAircraft ? resolvedBusyLabel : resolvedActionLabel}
                 </button>
                 <button
                     className="btn btn-outline"

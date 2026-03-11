@@ -9,6 +9,7 @@ type Props = {
     detections: AircraftDetection[];
     loading?: boolean;
     title?: string;
+    subtitle?: string;
 };
 
 function clamp(n: number, min: number, max: number) {
@@ -20,6 +21,7 @@ export const DetectionCanvas: React.FC<Props> = ({
     detections,
     loading = false,
     title = "Aircraft Detection",
+    subtitle = "Upload an image to run YOLOv8 ONNX aircraft detection.",
 }) => {
     const imgRef = useRef<HTMLImageElement | null>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -88,7 +90,7 @@ export const DetectionCanvas: React.FC<Props> = ({
     return (
         <ContentPanel
             title={title}
-            subtitle="Upload an image to run YOLOv8 ONNX aircraft detection."
+            subtitle={subtitle}
         >
             {!imageUrl ? (
                 <div className="empty-state">Upload an image to see detections.</div>

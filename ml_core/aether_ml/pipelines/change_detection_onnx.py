@@ -16,6 +16,7 @@ class ChangeDetectionResult:
     change_score: float
     change_mask: np.ndarray
     regions: list[ChangeRegion] | None = None
+    debug: dict[str, float] | None = None
 
 
 class ChangeDetectionOnnxPipeline:
@@ -24,6 +25,7 @@ class ChangeDetectionOnnxPipeline:
 
     Expected model signature:
       input:  (1, 6, H, W) float32, values in [0, 1]
+      or two inputs: (1, 3, H, W) before/after float32 in [0, 1]
       output: (1, 1, H, W) logits (or probabilities; we handle both defensively)
     """
 
@@ -38,10 +40,16 @@ class ChangeDetectionOnnxPipeline:
             raise FileNotFoundError(f"ONNX model not found at: {self.model_path}")
 
         self.device = device.lower()
-        self.session, self.input_name, self.input_height, self.input_width = self._create_session()
+        (
+            self.session,
+            self.input_mode,
+            self.input_names,
+            self.input_height,
+            self.input_width,
+        ) = self._create_session()
         self._region_classifier: RegionClassifier | None = None
 
-    def _create_session(self) -> tuple[ort.InferenceSession, str, int, int]:
+    def _create_session(self) -> tuple[ort.InferenceSession, str, tuple[str, ...], int, int]:
         available_providers = ort.get_available_providers()
 
         providers: list[str]
@@ -65,14 +73,29 @@ class ChangeDetectionOnnxPipeline:
         if not inputs:
             raise RuntimeError("ONNX model has no inputs.")
 
-        input_tensor = inputs[0]
-        shape = input_tensor.shape
-        if len(shape) != 4:
-            raise RuntimeError(f"Expected 4D input for change detection model, got shape: {shape}")
+        input_names = tuple(inp.name for inp in inputs)
+        if len(inputs) == 1:
+            input_tensor = inputs[0]
+            shape = input_tensor.shape
+            if len(shape) != 4:
+                raise RuntimeError(f"Expected 4D input for change detection model, got shape: {shape}")
+            input_mode = "stacked"
+        elif len(inputs) == 2:
+            shape = inputs[0].shape
+            if len(shape) != 4:
+                raise RuntimeError(f"Expected 4D input for change detection model, got shape: {shape}")
+            input_mode = "pair"
+        else:
+            raise RuntimeError(f"Unsupported number of inputs for change model: {len(inputs)}")
 
-        input_height = int(shape[2])
-        input_width = int(shape[3])
-        return session, input_tensor.name, input_height, input_width
+        def _resolve_dim(dim: object, fallback: int) -> int:
+            if isinstance(dim, (int, np.integer)):
+                return int(dim)
+            return fallback
+
+        input_height = _resolve_dim(shape[2], 1024)
+        input_width = _resolve_dim(shape[3], 1024)
+        return session, input_mode, input_names, input_height, input_width
 
     @property
     def runtime_device(self) -> str:
@@ -88,7 +111,9 @@ class ChangeDetectionOnnxPipeline:
         # Assume BGR (OpenCV default) and convert to RGB
         return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-    def _preprocess_pair(self, before: np.ndarray, after: np.ndarray) -> tuple[np.ndarray, int, int]:
+    def _preprocess_pair(
+        self, before: np.ndarray, after: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, int, int]:
         if before.shape[:2] != after.shape[:2]:
             raise ValueError("Before and after images must have the same spatial shape.")
 
@@ -103,11 +128,19 @@ class ChangeDetectionOnnxPipeline:
         before_resized = before_resized.astype(np.float32) / 255.0
         after_resized = after_resized.astype(np.float32) / 255.0
 
+        mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+        std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+        before_resized = (before_resized - mean) / std
+        after_resized = (after_resized - mean) / std
+
         stacked = np.concatenate([before_resized, after_resized], axis=2)  # H, W, 6
         x = np.transpose(stacked, (2, 0, 1))  # 6, H, W
         x = np.expand_dims(x, axis=0).astype(np.float32)  # 1, 6, H, W
 
-        return x, orig_h, orig_w
+        before_chw = np.transpose(before_resized, (2, 0, 1))[None, ...].astype(np.float32)  # 1, 3, H, W
+        after_chw = np.transpose(after_resized, (2, 0, 1))[None, ...].astype(np.float32)  # 1, 3, H, W
+
+        return x, before_chw, after_chw, orig_h, orig_w
 
     @staticmethod
     def _sigmoid(x: np.ndarray) -> np.ndarray:
@@ -119,9 +152,17 @@ class ChangeDetectionOnnxPipeline:
         after_image: np.ndarray,
         semantic: bool = False,
         min_area: int = 100,
+        debug: bool = False,
     ) -> ChangeDetectionResult:
-        x, orig_h, orig_w = self._preprocess_pair(before_image, after_image)
-        outputs = self.session.run(None, {self.input_name: x})
+        x, before_chw, after_chw, orig_h, orig_w = self._preprocess_pair(before_image, after_image)
+        if self.input_mode == "pair":
+            name_lut = {name.lower(): name for name in self.input_names}
+            before_name = name_lut.get("before", self.input_names[0])
+            after_name = name_lut.get("after", self.input_names[1])
+            input_feed = {before_name: before_chw, after_name: after_chw}
+        else:
+            input_feed = {self.input_names[0]: x}
+        outputs = self.session.run(None, input_feed)
 
         raw = outputs[0]
         if raw.ndim == 4:
@@ -141,6 +182,23 @@ class ChangeDetectionOnnxPipeline:
 
         mask = cv2.resize(mask_small, (orig_w, orig_h), interpolation=cv2.INTER_LINEAR)
         change_score = float(mask.mean())
+        debug_payload: dict[str, float] | None = None
+        if debug:
+            before_stats = before_chw.astype(np.float32)
+            after_stats = after_chw.astype(np.float32)
+            debug_payload = {
+                "input_before_min": float(before_stats.min()),
+                "input_before_max": float(before_stats.max()),
+                "input_before_mean": float(before_stats.mean()),
+                "input_after_min": float(after_stats.min()),
+                "input_after_max": float(after_stats.max()),
+                "input_after_mean": float(after_stats.mean()),
+                "logits_min": raw_min,
+                "logits_max": raw_max,
+                "prob_min": float(mask.min()),
+                "prob_max": float(mask.max()),
+                "prob_mean": float(mask.mean()),
+            }
         regions: list[ChangeRegion] | None = None
         if semantic:
             boxes = extract_change_regions(mask, min_area=min_area)
@@ -152,5 +210,10 @@ class ChangeDetectionOnnxPipeline:
                 region_type = self._region_classifier.classify_crop(crop)
                 regions.append(ChangeRegion(region_type=region_type, bbox=(x1, y1, x2, y2)))
 
-        return ChangeDetectionResult(change_score=change_score, change_mask=mask, regions=regions)
+        return ChangeDetectionResult(
+            change_score=change_score,
+            change_mask=mask,
+            regions=regions,
+            debug=debug_payload,
+        )
 

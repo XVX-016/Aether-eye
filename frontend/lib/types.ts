@@ -22,6 +22,9 @@ export type ChangeDetectionResponse = {
     change_score: number;
     regions?: { type: string; bbox: [number, number, number, number] }[] | null;
     change_mask_base64?: string | null;
+    overlay_base64?: string | null;
+    changed_pixels?: number | null;
+    debug?: Record<string, number> | null;
     inference_time_ms?: number | null;
     model_name?: string | null;
     device_used?: string | null;

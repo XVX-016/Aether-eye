@@ -7,20 +7,24 @@ import numpy as np
 import cv2
 import logging
 
-from app.schemas.intelligence import IntelligenceEvent, IntelligenceProcessRequest, IntelligenceProcessResponse
-from app.core.tasks import create_job, get_job, process_satellite_intelligence_task, JobStatus
+from app.schemas.intelligence import IntelligenceEvent, IntelligenceProcessRequest, IntelligenceProcessResponse, ActivityEvent, SceneRecord
+from app.core.tasks import create_job, get_job, list_jobs, process_satellite_intelligence_task, JobStatus
 from app.services.intelligence_service import GeoBounds, process_intelligence_arrays, persist_events
 from app.database.session import get_db
-from app.database.models import IntelligenceEvent as DBEvent
+from app.database.models import IntelligenceEvent as DBEvent, AircraftActivityEvent as DBAircraftActivity, SatelliteScene as DBSatelliteScene
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from ml_inference.geo_projection import GeoContext, geo_context_from_bounds, read_geotiff_bytes_with_context
+from ml_inference.geo_projection import GeoContext, geo_context_from_bounds
+from app.api.upload_utils import (
+    read_upload_image,
+    parse_geo_bounds,
+    http_error,
+    MAX_UPLOAD_BYTES,
+    MAX_UPLOAD_PIXELS,
+)
 
 router = APIRouter(prefix="/intelligence", tags=["intelligence"])
 logger = logging.getLogger(__name__)
-
-MAX_UPLOAD_BYTES = 25 * 1024 * 1024
-MAX_UPLOAD_PIXELS = 4096 * 4096
 
 @router.post("/process", response_model=Dict[str, str])
 async def start_intelligence_processing(
@@ -63,6 +67,11 @@ async def get_processing_status(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found")
     return job
 
+
+@router.get("/jobs", response_model=List[JobStatus])
+async def get_jobs():
+    return list_jobs()
+
 @router.get("/events", response_model=List[IntelligenceEvent])
 async def get_intelligence_events(db: AsyncSession = Depends(get_db)):
     """
@@ -92,42 +101,69 @@ async def get_intelligence_events(db: AsyncSession = Depends(get_db)):
     return out
 
 
-def _http_error(status_code: int, code: str, message: str) -> HTTPException:
-    return HTTPException(status_code=status_code, detail={"error": code, "message": message})
+@router.get("/activity", response_model=List[ActivityEvent])
+async def get_activity_events(
+    tile_id: str | None = None,
+    from_ts: str | None = None,
+    to_ts: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    def _parse_dt(value: str) -> datetime:
+        if value.endswith("Z"):
+            value = value.replace("Z", "+00:00")
+        return datetime.fromisoformat(value)
+
+    query = select(DBAircraftActivity)
+    if tile_id:
+        query = query.where(DBAircraftActivity.tile_id == tile_id)
+    if from_ts:
+        query = query.where(DBAircraftActivity.window_start >= _parse_dt(from_ts))
+    if to_ts:
+        query = query.where(DBAircraftActivity.window_end <= _parse_dt(to_ts))
+    result = await db.execute(query.order_by(DBAircraftActivity.window_end.desc()))
+    rows = result.scalars().all()
+    out: List[ActivityEvent] = []
+    for ev in rows:
+        out.append(
+            ActivityEvent(
+                tile_id=ev.tile_id,
+                event_type=ev.event_type,
+                window_start=ev.window_start,
+                window_end=ev.window_end,
+                previous_count=ev.previous_count,
+                current_count=ev.current_count,
+                delta=ev.delta,
+                created_at=ev.created_at,
+            )
+        )
+    return out
 
 
-def _read_upload_image(file: UploadFile) -> tuple[np.ndarray, GeoContext | None, int]:
-    data = file.file.read()
-    if not data:
-        raise _http_error(400, "EMPTY_UPLOAD", "Empty file upload.")
-    if len(data) > MAX_UPLOAD_BYTES:
-        raise _http_error(413, "UPLOAD_TOO_LARGE", "Maximum upload size is 25MB.")
-    if file.filename and file.filename.lower().endswith((".tif", ".tiff")):
-        img, geo_ctx = read_geotiff_bytes_with_context(data, tile_id=file.filename)
-        h, w = img.shape[:2]
-        if h * w > MAX_UPLOAD_PIXELS:
-            raise _http_error(413, "UPLOAD_TOO_LARGE", "Maximum image resolution is 4096x4096.")
-        return img, geo_ctx, len(data)
-    arr = np.frombuffer(data, dtype=np.uint8)
-    img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-    if img is None:
-        raise _http_error(400, "INVALID_IMAGE", "Invalid image file.")
-    h, w = img.shape[:2]
-    if h * w > MAX_UPLOAD_PIXELS:
-        raise _http_error(413, "UPLOAD_TOO_LARGE", "Maximum image resolution is 4096x4096.")
-    return img, None, len(data)
-
-
-def _parse_geo_bounds(raw: str | None) -> GeoBounds | None:
-    if not raw:
-        return None
-    try:
-        vals = json.loads(raw) if raw.strip().startswith("[") else [float(x) for x in raw.split(",")]
-        if len(vals) != 4:
-            return None
-        return GeoBounds(min_lat=float(vals[0]), min_lon=float(vals[1]), max_lat=float(vals[2]), max_lon=float(vals[3]))
-    except Exception:
-        return None
+@router.get("/scenes", response_model=List[SceneRecord])
+async def get_scenes(
+    status: str | None = None,
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+):
+    query = select(DBSatelliteScene)
+    if status:
+        query = query.where(DBSatelliteScene.status == status)
+    query = query.order_by(DBSatelliteScene.datetime.desc()).limit(limit)
+    result = await db.execute(query)
+    rows = result.scalars().all()
+    out: List[SceneRecord] = []
+    for row in rows:
+        out.append(
+            SceneRecord(
+                scene_id=row.scene_id,
+                collection=row.collection,
+                datetime=row.datetime,
+                status=row.status,
+                cloud_cover=row.cloud_cover,
+                local_path=row.local_path,
+            )
+        )
+    return out
 
 
 @router.post("/process-upload", response_model=IntelligenceProcessResponse)
@@ -142,7 +178,7 @@ async def process_upload(
     db: AsyncSession = Depends(get_db),
 ) -> IntelligenceProcessResponse:
     if before_image is None and after_image is None:
-        raise _http_error(400, "MISSING_IMAGE", "At least one image is required.")
+        raise http_error(400, "MISSING_IMAGE", "At least one image is required.")
 
     before_img = None
     after_img = None
@@ -152,21 +188,21 @@ async def process_upload(
     t0 = perf_counter()
 
     if before_image is not None:
-        before_img, geo_ctx, sz = _read_upload_image(before_image)
+        before_img, geo_ctx, sz = read_upload_image(before_image)
         size_bytes += sz
         resolution = before_img.shape[:2]
     if after_image is not None:
-        after_img, after_geo, sz = _read_upload_image(after_image)
+        after_img, after_geo, sz = read_upload_image(after_image)
         geo_ctx = after_geo or geo_ctx
         size_bytes += sz
         resolution = after_img.shape[:2] or resolution
 
-    bounds = _parse_geo_bounds(geo_bounds)
+    bounds = parse_geo_bounds(geo_bounds)
     if geo_ctx is None and bounds is not None and after_img is not None:
         geo_ctx = geo_context_from_bounds(
             width=after_img.shape[1],
             height=after_img.shape[0],
-            bounds=(bounds.min_lat, bounds.min_lon, bounds.max_lat, bounds.max_lon),
+            bounds=(bounds[0], bounds[1], bounds[2], bounds[3]),
         )
 
     result = process_intelligence_arrays(

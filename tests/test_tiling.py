@@ -1,7 +1,16 @@
 import unittest
 import numpy as np
+import pytest
 from PIL import Image
+
+try:
+    import torch  # noqa: F401
+except Exception:
+    pytest.skip("torch not available", allow_module_level=True)
+
 from ml_core.utils.tiling_engine import TilingEngine
+
+pytestmark = pytest.mark.torch
 
 class TestTilingEngine(unittest.TestCase):
     def test_tile_and_stitch(self):

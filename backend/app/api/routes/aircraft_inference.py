@@ -13,15 +13,44 @@ from app.services.vit_service import (
     get_aircraft_classifier_config,
     get_vit_aircraft_pipeline,
 )
+from ml_inference.geo_projection import read_geotiff_bytes_with_context
 
 
 router = APIRouter(prefix="/v1", tags=["aircraft-inference"])
+
+
+def _is_tiff(file: UploadFile) -> bool:
+    name = (file.filename or "").lower()
+    ctype = (file.content_type or "").lower()
+    return name.endswith((".tif", ".tiff")) or "tiff" in ctype
+
+
+def _normalize_to_uint8(img: np.ndarray) -> np.ndarray:
+    if img.dtype == np.uint8:
+        return img
+    if np.issubdtype(img.dtype, np.unsignedinteger):
+        maxv = float(np.iinfo(img.dtype).max)
+        scaled = img.astype(np.float32) / maxv
+        return np.clip(scaled * 255.0, 0, 255).astype(np.uint8)
+    arr = img.astype(np.float32)
+    minv = float(np.min(arr))
+    maxv = float(np.max(arr))
+    if 0.0 <= minv and maxv <= 1.0:
+        return np.clip(arr * 255.0, 0, 255).astype(np.uint8)
+    if maxv <= minv:
+        return np.zeros_like(arr, dtype=np.uint8)
+    scaled = (arr - minv) / (maxv - minv)
+    return np.clip(scaled * 255.0, 0, 255).astype(np.uint8)
 
 
 def _read_image_bgr(file: UploadFile) -> np.ndarray:
     data = file.file.read()
     if not data:
         raise HTTPException(status_code=400, detail="Empty file upload.")
+    if _is_tiff(file):
+        rgb, _geo = read_geotiff_bytes_with_context(data, tile_id=None)
+        rgb = _normalize_to_uint8(rgb)
+        return cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
     arr = np.frombuffer(data, dtype=np.uint8)
     img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
     if img is None:

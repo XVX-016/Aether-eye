@@ -6,6 +6,11 @@ pydantic-settings>=2.2.0
 python-multipart>=0.0.9
 pyyaml>=6.0.1
 aether-ml_core @ file:///app/ml_core
+apscheduler>=3.10.4
+pystac-client>=0.7.6
+planetary-computer>=1.0.0
+requests>=2.31.0
+tqdm>=4.66.2
 sqlalchemy>=2.0.25
 aiosqlite>=0.19.0
 python-dotenv>=1.0.1

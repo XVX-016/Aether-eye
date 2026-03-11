@@ -35,9 +35,9 @@ class SentinelIngestor:
         )
         self.session = create_retrying_session()
 
-    def query_and_download(self, bbox: list, time_range: str, max_cloud_cover: float = 20.0, max_items: int = 1):
+    def query_items(self, bbox: list, time_range: str, max_cloud_cover: float = 20.0, max_items: int = 1):
         """
-        Query the STAC catalog and download the True Color (B04, B03, B02) GeoTIFFs.
+        Query the STAC catalog and return matching items.
         bbox Format: [min_lon, min_lat, max_lon, max_lat]
         time_range Format: "2023-01-01/2023-01-31"
         """
@@ -51,9 +51,23 @@ class SentinelIngestor:
         
         items = list(search.get_items())
         print(f"Discovered {len(items)} candidate items.")
-        
+        return items[:max_items]
+
+    def query_and_download(self, bbox: list, time_range: str, max_cloud_cover: float = 20.0, max_items: int = 1):
+        """
+        Query the STAC catalog and download the True Color (B04, B03, B02) GeoTIFFs.
+        bbox Format: [min_lon, min_lat, max_lon, max_lat]
+        time_range Format: "2023-01-01/2023-01-31"
+        """
+        items = self.query_items(
+            bbox=bbox,
+            time_range=time_range,
+            max_cloud_cover=max_cloud_cover,
+            max_items=max_items,
+        )
+
         downloaded_paths = []
-        for item in items[:max_items]:
+        for item in items:
             item_id = item.id
             cloud_cover = item.properties.get("eo:cloud_cover", 0)
             print(f"Processing Item {item_id} (Cloud Cover: {cloud_cover:.1f}%)")

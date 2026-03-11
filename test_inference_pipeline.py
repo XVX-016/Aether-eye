@@ -1,7 +1,11 @@
+import pytest
+
 from satellite_ingestion.stac_query import SentinelIngestor
 from tiling_engine.tile_generator import TileGenerator
 from tiling_engine.spectral_filter import SpectralFilter
 from pathlib import Path
+
+pytestmark = pytest.mark.network
 
 def test_pipeline():
     print("--- Stage 1: Global Ingestion ---")

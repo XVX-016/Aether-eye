@@ -66,6 +66,48 @@ class Settings(BaseSettings):
         description="Path to persisted change training metrics JSON.",
     )
 
+    # STAC ingestion / watcher
+    enable_stac_watcher: bool = Field(
+        default=False,
+        alias="ENABLE_STAC_WATCHER",
+        description="Enable background STAC watcher on API startup.",
+    )
+    stac_poll_minutes: int = Field(
+        default=180,
+        alias="STAC_POLL_MINUTES",
+        description="Polling interval for STAC watcher in minutes.",
+    )
+    stac_config_path: str = Field(
+        default="backend/configs/ingestion/stac.yaml",
+        alias="STAC_CONFIG_PATH",
+        description="Path to STAC watcher YAML config.",
+    )
+    stac_aois_json: str = Field(
+        default="",
+        alias="STAC_AOIS_JSON",
+        description="Optional JSON override for AOI list.",
+    )
+    enable_activity_aggregator: bool = Field(
+        default=True,
+        alias="ENABLE_ACTIVITY_AGGREGATOR",
+        description="Enable aircraft activity aggregation job.",
+    )
+    activity_window_hours: int = Field(
+        default=24,
+        alias="ACTIVITY_WINDOW_HOURS",
+        description="Window size for activity aggregation (hours).",
+    )
+    activity_surge_factor: float = Field(
+        default=2.0,
+        alias="ACTIVITY_SURGE_FACTOR",
+        description="Surge factor threshold for activity events.",
+    )
+    activity_min_count: int = Field(
+        default=3,
+        alias="ACTIVITY_MIN_COUNT",
+        description="Minimum current count required to emit surge.",
+    )
+
     # Dataset roots (Windows defaults)
     satellite_change_root: str = Field(
         default="C:/Computing/Aether-eye/ml_core/DATASET/Satellite-Change",

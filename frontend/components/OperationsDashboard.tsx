@@ -16,19 +16,38 @@ interface IntelligenceEvent {
   priority: string;
 }
 
+interface SceneRecord {
+  scene_id: string;
+  collection: string;
+  datetime: string;
+  status: string;
+  cloud_cover?: number | null;
+}
+
+interface ActivityEvent {
+  tile_id: string;
+  event_type: string;
+  window_start: string;
+  window_end: string;
+  previous_count: number;
+  current_count: number;
+  delta: number;
+  created_at: string;
+}
+
 export const OperationsDashboard: React.FC = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [events, setEvents] = useState<IntelligenceEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<IntelligenceEvent | null>(null);
+  const [scenes, setScenes] = useState<SceneRecord[]>([]);
+  const [activity, setActivity] = useState<ActivityEvent[]>([]);
 
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const response = await axios.post('http://localhost:8000/api/events', {
-          image_path: 'mock_satellite_image.png'
-        });
-        setEvents(response.data);
+        const response = await axios.get('/api/intelligence/events');
+        setEvents(response.data || []);
       } catch (error) {
         console.error('Error fetching intelligence events:', error);
         const mockRes = await fetch('/mocks/events.json');
@@ -38,6 +57,32 @@ export const OperationsDashboard: React.FC = () => {
       }
     };
     fetchEvents();
+  }, []);
+
+  useEffect(() => {
+    const fetchScenes = async () => {
+      try {
+        const response = await axios.get('/api/intelligence/scenes?limit=50');
+        setScenes(response.data || []);
+      } catch (error) {
+        console.error('Error fetching scenes:', error);
+        setScenes([]);
+      }
+    };
+    fetchScenes();
+  }, []);
+
+  useEffect(() => {
+    const fetchActivity = async () => {
+      try {
+        const response = await axios.get('/api/intelligence/activity');
+        setActivity(response.data || []);
+      } catch (error) {
+        console.error('Error fetching activity:', error);
+        setActivity([]);
+      }
+    };
+    fetchActivity();
   }, []);
 
   useEffect(() => {
@@ -69,12 +114,26 @@ export const OperationsDashboard: React.FC = () => {
   }, [events]);
 
   return (
-    <div className="app-shell flex h-[calc(100vh-80px)] mt-[80px] overflow-hidden">
+    <div className="app-shell flex h-[calc(100vh-280px)] mt-8 min-h-[720px] overflow-hidden">
       {/* Left Sidebar: Event List */}
       <div className="w-[320px] bg-stealth-charcoal border-r border-border-strong flex flex-col glass">
         <div className="p-6 border-b border-border-strong">
           <h1 className="text-xl font-bold tracking-[0.2em] text-white mono uppercase">INTELLIGENCE</h1>
           <p className="text-[10px] text-text-muted mt-1 uppercase tracking-[0.3em] font-medium">Active Operations</p>
+        </div>
+        <div className="px-4 py-3 border-b border-border-strong">
+          <div className="text-[9px] text-text-dim uppercase tracking-widest mono mb-2">Global Ingestion</div>
+          <div className="grid grid-cols-3 gap-2">
+            {["NEW", "DOWNLOADED", "PROCESSED"].map((status) => {
+              const count = scenes.filter((s) => s.status === status).length;
+              return (
+                <div key={status} className="bg-white/[0.03] border border-white/10 p-2 text-center">
+                  <div className="text-[9px] text-text-dim mono uppercase">{status}</div>
+                  <div className="text-xs text-white mono">{count}</div>
+                </div>
+              );
+            })}
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-3">
           {events.length > 0 ? events.map((event) => (
@@ -84,10 +143,10 @@ export const OperationsDashboard: React.FC = () => {
                 setSelectedEvent(event);
                 map.current?.flyTo({ center: [event.lon, event.lat], zoom: 15 });
               }}
-              className={`p-4 border transition-all duration-300 relative overflow-hidden group ${
+              className={`intel-card p-4 border transition-all duration-300 relative overflow-hidden group ${
                 selectedEvent?.event_id === event.event_id
-                  ? 'bg-white/5 border-white/20'
-                  : 'bg-transparent border-white/5 hover:border-white/10 hover:bg-white/[0.02]'
+                  ? 'intel-card-active'
+                  : 'intel-card-idle'
               }`}
             >
               {selectedEvent?.event_id === event.event_id && (
@@ -103,6 +162,10 @@ export const OperationsDashboard: React.FC = () => {
               </div>
               <h3 className="text-xs font-bold text-text-primary tracking-wider mono uppercase">{event.type.replace('_', ' ')}</h3>
               <p className="text-[10px] text-text-muted mt-1 mono">{event.aircraft_class || 'SIGNAL DETECTED'}</p>
+              <div className="mt-3 flex items-center justify-between text-[9px] text-text-dim mono">
+                <span>{event.lat.toFixed(3)}, {event.lon.toFixed(3)}</span>
+                <span>CONF {Math.round(event.confidence * 100)}%</span>
+              </div>
             </div>
           )) : (
             <div className="flex flex-col items-center justify-center h-40 opacity-30">
@@ -110,6 +173,18 @@ export const OperationsDashboard: React.FC = () => {
               <p className="text-[10px] mono uppercase tracking-widest text-text-dim">No Active Signals</p>
             </div>
           )}
+        </div>
+        <div className="px-4 py-3 border-t border-border-strong">
+          <div className="text-[9px] text-text-dim uppercase tracking-widest mono mb-2">Activity Signals</div>
+          <div className="space-y-2">
+            {activity.length > 0 ? activity.slice(0, 5).map((item, idx) => (
+              <div key={`${item.tile_id}-${idx}`} className="text-[10px] mono text-text-muted">
+                <span className="text-white">{item.event_type}</span> • {item.tile_id} • +{item.delta}
+              </div>
+            )) : (
+              <div className="text-[10px] mono text-text-dim">No activity signals</div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -229,6 +304,24 @@ export const OperationsDashboard: React.FC = () => {
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+        .intel-card {
+          border-radius: 6px;
+          backdrop-filter: blur(6px);
+          letter-spacing: 0.02em;
+        }
+        .intel-card-idle {
+          background: rgba(255,255,255,0.02);
+          border-color: rgba(255,255,255,0.08);
+        }
+        .intel-card-idle:hover {
+          background: rgba(255,255,255,0.04);
+          border-color: rgba(255,255,255,0.16);
+        }
+        .intel-card-active {
+          background: rgba(255,255,255,0.07);
+          border-color: rgba(255,255,255,0.25);
+          box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+        }
         
         .mapboxgl-popup-content, .maplibregl-popup-content {
           background: rgba(255, 255, 255, 0.9) !important;

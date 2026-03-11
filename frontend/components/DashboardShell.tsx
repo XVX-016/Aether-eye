@@ -18,6 +18,7 @@ import {
     runAircraftDetection,
     runAircraftGradCam,
     runChangeDetection,
+    fetchImagePreview,
 } from "@/lib/api";
 import type {
     AircraftClassificationResponse,
@@ -46,15 +47,24 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
     const [aircraftDetections, setAircraftDetections] = useState<AircraftDetection[]>([]);
     const [changeScore, setChangeScore] = useState<number | null>(null);
     const [changeMaskBase64, setChangeMaskBase64] = useState<string | null>(null);
+    const [changeOverlayBase64, setChangeOverlayBase64] = useState<string | null>(null);
+    const [changeDebug, setChangeDebug] = useState<Record<string, number> | null>(null);
     const [semanticRegions, setSemanticRegions] = useState<
         { type: string; bbox: [number, number, number, number] }[]
     >([]);
     const [afterImageDims, setAfterImageDims] = useState<{ w: number; h: number } | null>(null);
     const [changeMaskOpacity, setChangeMaskOpacity] = useState<number>(45);
+    const [changedPixels, setChangedPixels] = useState<number | null>(null);
     const [classificationResult, setClassificationResult] =
         useState<AircraftClassificationResponse | null>(null);
+    const [aircraftClasses, setAircraftClasses] = useState<
+        { detection: AircraftDetection; class_name: string; confidence: number }[]
+    >([]);
     const [gradCamBase64, setGradCamBase64] = useState<string | null>(null);
     const [gradCamOpacity, setGradCamOpacity] = useState<number>(45);
+    const [aircraftPreviewUrl, setAircraftPreviewUrl] = useState<string | null>(null);
+    const [beforePreviewUrl, setBeforePreviewUrl] = useState<string | null>(null);
+    const [afterPreviewUrl, setAfterPreviewUrl] = useState<string | null>(null);
 
     const [loadingAircraft, setLoadingAircraft] = useState(false);
     const [loadingChange, setLoadingChange] = useState(false);
@@ -83,10 +93,92 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
         () => (changeMaskBase64 ? `data:image/png;base64,${changeMaskBase64}` : null),
         [changeMaskBase64],
     );
+    const changeOverlayUrl = useMemo(
+        () => (changeOverlayBase64 ? `data:image/png;base64,${changeOverlayBase64}` : null),
+        [changeOverlayBase64],
+    );
     const gradCamUrl = useMemo(
         () => (gradCamBase64 ? `data:image/png;base64,${gradCamBase64}` : null),
         [gradCamBase64],
     );
+
+    const aircraftDisplayUrl = aircraftPreviewUrl ?? aircraftUrl;
+    const beforeDisplayUrl = beforePreviewUrl ?? beforeUrl;
+    const afterDisplayUrl = afterPreviewUrl ?? afterUrl;
+
+    const isTiff = (file: File | null) => {
+        if (!file) return false;
+        const name = file.name.toLowerCase();
+        const type = file.type.toLowerCase();
+        return name.endsWith(".tif") || name.endsWith(".tiff") || type.includes("tiff");
+    };
+
+    const formatMetric = (value: number | null | undefined) => {
+        if (value == null || !Number.isFinite(value)) return "--";
+        const abs = Math.abs(value);
+        if (abs > 0 && abs < 0.0001) return value.toExponential(2);
+        return value.toFixed(4);
+    };
+
+    useEffect(() => {
+        let active = true;
+        if (!aircraftFile || !isTiff(aircraftFile)) {
+            setAircraftPreviewUrl(null);
+            return;
+        }
+        fetchImagePreview(aircraftFile)
+            .then((res) => {
+                if (!active) return;
+                setAircraftPreviewUrl(`data:image/png;base64,${res.png_base64}`);
+            })
+            .catch(() => {
+                if (!active) return;
+                setAircraftPreviewUrl(null);
+            });
+        return () => {
+            active = false;
+        };
+    }, [aircraftFile]);
+
+    useEffect(() => {
+        let active = true;
+        if (!beforeFile || !isTiff(beforeFile)) {
+            setBeforePreviewUrl(null);
+            return;
+        }
+        fetchImagePreview(beforeFile)
+            .then((res) => {
+                if (!active) return;
+                setBeforePreviewUrl(`data:image/png;base64,${res.png_base64}`);
+            })
+            .catch(() => {
+                if (!active) return;
+                setBeforePreviewUrl(null);
+            });
+        return () => {
+            active = false;
+        };
+    }, [beforeFile]);
+
+    useEffect(() => {
+        let active = true;
+        if (!afterFile || !isTiff(afterFile)) {
+            setAfterPreviewUrl(null);
+            return;
+        }
+        fetchImagePreview(afterFile)
+            .then((res) => {
+                if (!active) return;
+                setAfterPreviewUrl(`data:image/png;base64,${res.png_base64}`);
+            })
+            .catch(() => {
+                if (!active) return;
+                setAfterPreviewUrl(null);
+            });
+        return () => {
+            active = false;
+        };
+    }, [afterFile]);
 
     useEffect(() => {
         return () => {
@@ -112,6 +204,7 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
         try {
             const res = await runAircraftDetection(aircraftFile, country);
             setAircraftDetections(res.detections ?? []);
+            setAircraftClasses([]);
             const bestConf =
                 res.detections && res.detections.length
                     ? res.detections.reduce(
@@ -133,6 +226,86 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
         }
     };
 
+    const cropDetectionToFile = async (file: File, det: AircraftDetection): Promise<File | null> => {
+        try {
+            const bitmap = await createImageBitmap(file);
+            const x1 = Math.max(0, Math.floor(det.bbox.x1));
+            const y1 = Math.max(0, Math.floor(det.bbox.y1));
+            const x2 = Math.min(bitmap.width, Math.ceil(det.bbox.x2));
+            const y2 = Math.min(bitmap.height, Math.ceil(det.bbox.y2));
+            const w = Math.max(1, x2 - x1);
+            const h = Math.max(1, y2 - y1);
+            const canvas = document.createElement("canvas");
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return null;
+            ctx.drawImage(bitmap, x1, y1, w, h, 0, 0, w, h);
+            const blob = await new Promise<Blob | null>((resolve) =>
+                canvas.toBlob((b) => resolve(b), "image/jpeg", 0.92),
+            );
+            if (!blob) return null;
+            return new File([blob], "crop.jpg", { type: "image/jpeg" });
+        } catch {
+            return null;
+        }
+    };
+
+    const runAircraftRecognition = async () => {
+        if (!aircraftFile) return;
+        setError(null);
+        setLoadingClassification(true);
+        try {
+            const detectionRes = await runAircraftDetection(aircraftFile, country);
+            const detections = detectionRes.detections ?? [];
+            setAircraftDetections(detections);
+            if (!detections.length) {
+                setAircraftClasses([]);
+                setClassificationResult(null);
+                setSystemMetrics({
+                    inference_time_ms: detectionRes.inference_time_ms ?? undefined,
+                    model_name: detectionRes.model_name ?? undefined,
+                    device_used: detectionRes.device_used ?? undefined,
+                    confidence: null,
+                });
+                return;
+            }
+
+            const results: { detection: AircraftDetection; class_name: string; confidence: number }[] = [];
+            for (const det of detections) {
+                const cropFile = await cropDetectionToFile(aircraftFile, det);
+                if (!cropFile) continue;
+                const cls = await runAircraftClassification(cropFile, country);
+                results.push({
+                    detection: det,
+                    class_name: cls.class_name,
+                    confidence: cls.confidence,
+                });
+            }
+            setAircraftClasses(results);
+            setClassificationResult(null);
+            const bestConf =
+                detections.length
+                    ? detections.reduce(
+                        (max, d) => (d.confidence > max ? d.confidence : max),
+                        detections[0].confidence,
+                    )
+                    : null;
+            setSystemMetrics({
+                inference_time_ms: detectionRes.inference_time_ms ?? undefined,
+                model_name: detectionRes.model_name ?? undefined,
+                device_used: detectionRes.device_used ?? undefined,
+                confidence: bestConf,
+            });
+        } catch (err: any) {
+            setAircraftDetections([]);
+            setAircraftClasses([]);
+            setError(err?.response?.data?.detail ?? err?.message ?? "Aircraft recognition failed.");
+        } finally {
+            setLoadingClassification(false);
+        }
+    };
+
     const runChange = async () => {
         if (!beforeFile || !afterFile) return;
         setError(null);
@@ -141,7 +314,10 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
             const res = await runChangeDetection(beforeFile, afterFile, true, country, true);
             setChangeScore(res.change_score);
             setChangeMaskBase64(res.change_mask_base64 ?? null);
+            setChangeOverlayBase64(res.overlay_base64 ?? null);
+            setChangeDebug(res.debug ?? null);
             setSemanticRegions(res.regions ?? []);
+            setChangedPixels(res.changed_pixels ?? null);
             setSystemMetrics({
                 inference_time_ms: res.inference_time_ms ?? undefined,
                 model_name: res.model_name ?? undefined,
@@ -151,7 +327,10 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
         } catch (err: any) {
             setChangeScore(null);
             setChangeMaskBase64(null);
+            setChangeOverlayBase64(null);
+            setChangeDebug(null);
             setSemanticRegions([]);
+            setChangedPixels(null);
             setError(err?.response?.data?.detail ?? err?.message ?? "Change detection failed.");
         } finally {
             setLoadingChange(false);
@@ -199,6 +378,16 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
     const isAircraftIntelligence =
         activeSection === "aircraft-intelligence" || activeSection === "aircraft-detection";
 
+    const runAircraftAction = isAircraftIntelligence ? runAircraftRecognition : runAircraft;
+    const aircraftBusy = isAircraftIntelligence ? loadingClassification : loadingAircraft;
+    const canRunAircraftAction = !!aircraftFile;
+    const aircraftActionLabel = isAircraftIntelligence
+        ? "RUN DETECTION + RECOGNITION"
+        : "RUN DETECTION";
+    const aircraftBusyLabel = isAircraftIntelligence
+        ? "ANALYZING..."
+        : "DETECTING...";
+
     const content = (
         <main className="main-content">
                     {consoleMode && isAircraftIntelligence && <AetherHero />}
@@ -218,12 +407,13 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
                             <>
                                 <div className="col col-left">
                                     <ImageUploadPanel
-                                        label="Upload: detection image"
-                                        helpText="Used for aircraft detection (YOLOv8 ONNX)."
+                                        label="Upload: recognition image"
+                                        helpText="Supports PNG/JPG/GeoTIFF for recognition."
                                         file={aircraftFile}
                                         onChange={(f) => {
                                             setAircraftFile(f);
                                             setAircraftDetections([]);
+                                            setAircraftClasses([]);
                                         }}
                                     />
                                     {!consoleMode && (
@@ -231,49 +421,20 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
                                             <button
                                                 className="btn btn-primary"
                                                 type="button"
-                                                onClick={runAircraft}
-                                                disabled={!aircraftFile || loadingAircraft}
-                                            >
-                                                {loadingAircraft ? "DETECTING..." : "RUN DETECTION"}
-                                            </button>
-                                            <button
-                                                className="btn btn-outline"
-                                                type="button"
-                                                onClick={async () => {
-                                                    if (!aircraftFile) return;
-                                                    setError(null);
-                                                    setLoadingClassification(true);
-                                                    try {
-                                                        const res = await runAircraftClassification(aircraftFile, country);
-                                                        setClassificationResult(res);
-                                                        setSystemMetrics({
-                                                            inference_time_ms: res.inference_time_ms ?? undefined,
-                                                            model_name: res.model_name ?? undefined,
-                                                            device_used: res.device_used ?? undefined,
-                                                            confidence: res.confidence,
-                                                        });
-                                                    } catch (err: any) {
-                                                        setClassificationResult(null);
-                                                        setError(
-                                                            err?.response?.data?.detail ??
-                                                                err?.message ??
-                                                                "Aircraft recognition failed.",
-                                                        );
-                                                    } finally {
-                                                        setLoadingClassification(false);
-                                                    }
-                                                }}
+                                                onClick={runAircraftRecognition}
                                                 disabled={!aircraftFile || loadingClassification}
                                             >
-                                                {loadingClassification ? "RECOGNIZING..." : "RUN RECOGNITION"}
+                                                {loadingClassification ? "ANALYZING..." : "RUN DETECTION + RECOGNITION"}
                                             </button>
                                         </div>
                                     )}
-                                    {aircraftUrl && (
+                                    {aircraftDisplayUrl && (
                                         <DetectionCanvas
-                                            imageUrl={aircraftUrl}
+                                            imageUrl={aircraftDisplayUrl}
                                             detections={aircraftDetections}
                                             loading={loadingAircraft}
+                                            title="Multi-Aircraft Detection"
+                                            subtitle="Detection results used for per-aircraft recognition."
                                         />
                                     )}
 
@@ -291,32 +452,41 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
                                             </div>
                                             <ContentPanel
                                                 title="Recognition Output"
-                                                subtitle="Detected class identity from uploaded airframe."
+                                                subtitle="Per-aircraft recognition from detection crops."
                                             >
-                                                {!classificationResult ? (
+                                                {aircraftDetections.length === 0 ? (
                                                     <div className="empty-state small">
-                                                        Run recognition to populate classification output.
+                                                        {loadingClassification
+                                                            ? "Analyzing detections..."
+                                                            : "No aircraft detected."}
+                                                    </div>
+                                                ) : aircraftClasses.length === 0 ? (
+                                                    <div className="empty-state small">
+                                                        {loadingClassification
+                                                            ? "Classifying detected aircraft..."
+                                                            : "No recognition results yet."}
                                                     </div>
                                                 ) : (
-                                                    <div className="classification-result">
-                                                        <div className="classification-row">
-                                                            <span className="classification-key">Aircraft class</span>
-                                                            <span className="classification-value">
-                                                                {classificationResult.class_name}
-                                                            </span>
+                                                    <div className="table">
+                                                        <div className="table-row table-head">
+                                                            <div>Aircraft</div>
+                                                            <div>Confidence</div>
+                                                            <div>Box</div>
                                                         </div>
-                                                        <div className="classification-row">
-                                                            <span className="classification-key">Confidence</span>
-                                                            <span className="classification-value">
-                                                                {(classificationResult.confidence * 100).toFixed(2)}%
-                                                            </span>
-                                                        </div>
-                                                        <div className="classification-row">
-                                                            <span className="classification-key">Origin country</span>
-                                                            <span className="classification-value">
-                                                                {classificationResult.origin_country}
-                                                            </span>
-                                                        </div>
+                                                        {aircraftClasses.map((item, idx) => (
+                                                            <div key={idx} className="table-row">
+                                                                <div className="mono">{item.class_name}</div>
+                                                                <div className="mono">
+                                                                    {(item.confidence * 100).toFixed(1)}%
+                                                                </div>
+                                                                <div className="mono">
+                                                                    {Math.round(item.detection.bbox.x1)},
+                                                                    {Math.round(item.detection.bbox.y1)} to{" "}
+                                                                    {Math.round(item.detection.bbox.x2)},
+                                                                    {Math.round(item.detection.bbox.y2)}
+                                                                </div>
+                                                            </div>
+                                                        ))}
                                                     </div>
                                                 )}
                                             </ContentPanel>
@@ -353,7 +523,10 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
                                                 setBeforeFile(f);
                                                 setChangeScore(null);
                                                 setChangeMaskBase64(null);
+                                                setChangeOverlayBase64(null);
+                                                setChangeDebug(null);
                                                 setSemanticRegions([]);
+                                                setChangedPixels(null);
                                                 setAfterImageDims(null);
                                             }}
                                         />
@@ -365,7 +538,10 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
                                                 setAfterFile(f);
                                                 setChangeScore(null);
                                                 setChangeMaskBase64(null);
+                                                setChangeOverlayBase64(null);
+                                                setChangeDebug(null);
                                                 setSemanticRegions([]);
+                                                setChangedPixels(null);
                                                 setAfterImageDims(null);
                                             }}
                                         />
@@ -383,21 +559,28 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
                                         )}
                                     </div>
 
-                                    <BeforeAfterSlider beforeUrl={beforeUrl} afterUrl={afterUrl} />
+                                    <BeforeAfterSlider beforeUrl={beforeDisplayUrl} afterUrl={afterDisplayUrl} />
 
                                     <ContentPanel
                                         title="Change Mask Overlay"
                                         subtitle="Change mask rendered over the after image."
                                     >
-                                        {!afterUrl ? (
+                                        {!afterDisplayUrl ? (
                                             <div className="empty-state small">
                                                 Upload and analyze images to view the mask overlay.
                                             </div>
                                         ) : (
-                                            <div className="overlay-stage">
+                                            <div
+                                                className="overlay-stage"
+                                                style={
+                                                    afterImageDims
+                                                        ? { aspectRatio: `${afterImageDims.w} / ${afterImageDims.h}` }
+                                                        : undefined
+                                                }
+                                            >
                                                 <img
                                                     className="overlay-base-image"
-                                                    src={afterUrl}
+                                                    src={afterDisplayUrl}
                                                     alt="After image"
                                                     onLoad={(e) => {
                                                         const target = e.currentTarget;
@@ -407,13 +590,39 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
                                                         });
                                                     }}
                                                 />
-                                                {changeMaskUrl && (
+                                                {(changeOverlayUrl || changeMaskUrl) && (
                                                     <img
-                                                        className="overlay-mask-image overlay-mask-red"
-                                                        src={changeMaskUrl}
+                                                        className={`overlay-mask-image ${changeOverlayUrl ? "" : "overlay-mask-red"}`}
+                                                        src={changeOverlayUrl ?? changeMaskUrl ?? undefined}
                                                         alt="Change mask overlay"
                                                         style={{ opacity: changeMaskOpacity / 100 }}
                                                     />
+                                                )}
+                                                {(changeScore != null || changedPixels != null) && (
+                                                    <div className="overlay-hud">
+                                                        {changeScore != null && (
+                                                            <div className="overlay-hud-row">
+                                                                <span className="overlay-hud-key">Change score</span>
+                                                                <span className="overlay-hud-value">
+                                                                    {formatMetric(changeScore)}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                        {changeDebug?.prob_max != null && (
+                                                            <div className="overlay-hud-row">
+                                                                <span className="overlay-hud-key">Prob max</span>
+                                                                <span className="overlay-hud-value">
+                                                                    {formatMetric(changeDebug.prob_max)}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                        {changedPixels != null && (
+                                                            <div className="overlay-hud-row">
+                                                                <span className="overlay-hud-key">Changed pixels</span>
+                                                                <span className="overlay-hud-value">{changedPixels}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 )}
                                                 {semanticRegions.map((region, idx) => {
                                                     const [x1, y1, x2, y2] = region.bbox;
@@ -474,6 +683,50 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
                                                 <span>Terrain Change</span>
                                             </div>
                                         </div>
+                                    </ContentPanel>
+
+                                    <ContentPanel
+                                        title="Change Analysis"
+                                        subtitle="Computed change score and detected regions."
+                                    >
+                                        {changeScore == null ? (
+                                            <div className="empty-state small">
+                                                Run change analysis to populate results.
+                                            </div>
+                                        ) : (
+                                            <div className="classification-result">
+                                                <div className="classification-row">
+                                                    <span className="classification-key">Change score</span>
+                                                    <span className="classification-value">
+                                                        {formatMetric(changeScore)}
+                                                    </span>
+                                                </div>
+                                                <div className="classification-row">
+                                                    <span className="classification-key">Changed pixels</span>
+                                                    <span className="classification-value">
+                                                        {changedPixels == null ? "--" : changedPixels}
+                                                    </span>
+                                                </div>
+                                                <div className="classification-row">
+                                                    <span className="classification-key">Semantic regions</span>
+                                                    <span className="classification-value">
+                                                        {semanticRegions.length}
+                                                    </span>
+                                                </div>
+                                                <div className="classification-row">
+                                                    <span className="classification-key">Prob max</span>
+                                                    <span className="classification-value">
+                                                        {formatMetric(changeDebug?.prob_max)}
+                                                    </span>
+                                                </div>
+                                                <div className="classification-row">
+                                                    <span className="classification-key">Prob mean</span>
+                                                    <span className="classification-value">
+                                                        {formatMetric(changeDebug?.prob_mean)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
                                     </ContentPanel>
 
                                     {!consoleMode && (
@@ -735,13 +988,15 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
             <div className="main-area main-area-console">
                 <Topbar
                     activeSection={activeSection}
-                    onRunAircraft={runAircraft}
+                    onRunAircraft={runAircraftAction}
                     onRunChange={runChange}
-                    canRunAircraft={!!aircraftFile}
+                    canRunAircraft={canRunAircraftAction}
                     canRunChange={!!beforeFile && !!afterFile}
-                    loadingAircraft={loadingAircraft}
+                    loadingAircraft={aircraftBusy}
                     loadingChange={loadingChange}
                     error={error}
+                    aircraftActionLabel={aircraftActionLabel}
+                    aircraftBusyLabel={aircraftBusyLabel}
                 />
 
                 {content}

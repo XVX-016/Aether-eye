@@ -39,3 +39,23 @@ class IntelligenceProcessResponse(BaseModel):
     events: List[IntelligenceEvent]
     summary: Dict[str, Any]
     processing: Dict[str, Any]
+
+
+class ActivityEvent(BaseModel):
+    tile_id: str
+    event_type: str
+    window_start: datetime
+    window_end: datetime
+    previous_count: int
+    current_count: int
+    delta: int
+    created_at: datetime
+
+
+class SceneRecord(BaseModel):
+    scene_id: str
+    collection: str
+    datetime: datetime
+    status: str
+    cloud_cover: Optional[float] = None
+    local_path: Optional[str] = None

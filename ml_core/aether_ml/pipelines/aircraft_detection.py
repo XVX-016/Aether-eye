@@ -79,9 +79,15 @@ class AircraftDetectionPipeline:
         if len(shape) != 4:
             raise RuntimeError(f"Expected 4D input for YOLOv8 ONNX model, got shape: {shape}")
 
+        def _resolve_dim(dim: object, fallback: int) -> int:
+            if isinstance(dim, (int, np.integer)):
+                return int(dim)
+            return fallback
+
         # For typical YOLOv8 exports, height and width are at indices 2 and 3.
-        input_height = int(shape[2])
-        input_width = int(shape[3])
+        # Some ONNX exports use dynamic dims like "height"/"width".
+        input_height = _resolve_dim(shape[2], 640)
+        input_width = _resolve_dim(shape[3], 640)
 
         return session, input_tensor.name, input_height, input_width
 

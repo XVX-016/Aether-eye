@@ -171,3 +171,14 @@ def read_geotiff_bytes_with_context(data: bytes, tile_id: str | None = None) -> 
         tile_id=tile_id,
     )
     return rgb, geo_ctx
+
+
+def geo_context_from_sidecar(sidecar: dict[str, Any]) -> GeoContext:
+    return GeoContext(
+        transform=_to_affine(sidecar.get("transform")),
+        crs=sidecar.get("crs"),
+        width=int(sidecar.get("width", 0)),
+        height=int(sidecar.get("height", 0)),
+        bounds=tuple(sidecar.get("tile_bounds")) if sidecar.get("tile_bounds") else None,
+        tile_id=sidecar.get("tile_id"),
+    )

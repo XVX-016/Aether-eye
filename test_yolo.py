@@ -1,5 +1,14 @@
 import os
+import pytest
+
+try:
+    import torch  # noqa: F401
+except Exception:
+    pytest.skip("torch not available", allow_module_level=True)
+
 from ultralytics import YOLO
+
+pytestmark = pytest.mark.torch
 
 def test_model():
     # Load the newly trained model weights

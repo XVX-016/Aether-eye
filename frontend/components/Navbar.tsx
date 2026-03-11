@@ -8,7 +8,7 @@ const NAV_ITEMS = [
     { label: "HOME", href: "/" },
     { label: "AIRCRAFT INTELLIGENCE", href: "/aircraft-intelligence" },
     { label: "CHANGE INTELLIGENCE", href: "/change-intelligence" },
-    { label: "INTELLIGENCE EVENTS", href: "/operations" },
+    { label: "OPERATIONS DASHBOARD", href: "/operations" },
 ];
 
 export const Navbar: React.FC = () => {

@@ -12,7 +12,7 @@ type CapabilityPageProps = {
 const PAGE_META: Record<MainSection, { title: string; description: string }> = {
     "aircraft-intelligence": {
         title: "AIRCRAFT INTELLIGENCE",
-        description: "Unified pipeline: detect aircraft targets, classify airframes, and review explainability in one flow.",
+        description: "Operational target detection pipeline for aircraft imagery with ONNX acceleration.",
     },
     "aircraft-detection": {
         title: "AIRCRAFT SURVEILLANCE",

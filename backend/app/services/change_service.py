@@ -97,18 +97,22 @@ def predict_change(
     before_bgr: np.ndarray,
     after_bgr: np.ndarray,
     include_overlay: bool,
+    debug: bool = False,
 ) -> dict[str, Any]:
     cfg = get_change_detector_config()
     model = get_change_detector_v1()
-    result = model.run(before_bgr, after_bgr, semantic=False)
+    result = model.run(before_bgr, after_bgr, semantic=False, debug=debug)
 
     prob = np.clip(result.change_mask, 0.0, 1.0)
+    change_score = float(prob.mean())
+    prob_mask_u8 = np.clip(prob * 255.0, 0, 255).astype(np.uint8)
     binary = (prob > cfg.threshold).astype(np.uint8)
     changed_pixels = int(binary.sum())
     total = int(binary.size)
     change_ratio = float(changed_pixels / max(1, total))
     mask_u8 = (binary * 255).astype(np.uint8)
     mask_base64 = _to_base64_png_gray(mask_u8)
+    prob_mask_base64 = _to_base64_png_gray(prob_mask_u8)
 
     overlay_base64 = None
     if include_overlay:
@@ -116,7 +120,7 @@ def predict_change(
         red = np.zeros_like(after_rgb, dtype=np.uint8)
         red[..., 0] = 255
         alpha = float(np.clip(cfg.overlay_alpha, 0.0, 1.0))
-        mask3 = (binary[..., None] > 0).astype(np.float32)
+        mask3 = prob[..., None].astype(np.float32)
         over = (after_rgb.astype(np.float32) * (1.0 - alpha * mask3) + red.astype(np.float32) * (alpha * mask3)).astype(
             np.uint8
         )
@@ -124,9 +128,12 @@ def predict_change(
 
     return {
         "mask_base64": mask_base64,
+        "prob_mask_base64": prob_mask_base64,
+        "change_score": change_score,
         "change_ratio": change_ratio,
         "changed_pixels": changed_pixels,
         "overlay_base64": overlay_base64,
+        "debug": result.debug,
         "model_name": model.model_name,
         "device_used": model.runtime_device,
     }
