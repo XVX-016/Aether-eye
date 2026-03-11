@@ -5,7 +5,7 @@ from fastapi import APIRouter
 from app.schemas.inference import ChangeDetectionRequest, ChangeDetectionResponse
 from app.services.inference_service import inference_service
 
-router = APIRouter(prefix="/v1/change-detection", tags=["inference"])
+router = APIRouter(prefix="/v1/change-detection-json", tags=["inference"])
 
 
 @router.post(

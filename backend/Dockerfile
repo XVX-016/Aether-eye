@@ -14,15 +14,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy backend and ml-core so that ML core is fully isolated but available to the API.
+# Copy backend and ml_core so that ML core is fully isolated but available to the API.
 COPY ./backend /app/backend
-COPY ./ml-core /app/ml-core
+COPY ./ml_core /app/ml_core
 
 WORKDIR /app
 
 # Install ML core and backend dependencies.
 RUN pip install --upgrade pip && \
-    pip install --no-cache-dir ./ml-core && \
+    pip install --no-cache-dir ./ml_core && \
     pip install --no-cache-dir -r backend/requirements.txt
 
 WORKDIR /app/backend

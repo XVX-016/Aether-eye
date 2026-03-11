@@ -1,89 +1,120 @@
 ## Aether Eye Monorepo
 
-Production-ready monorepo skeleton for an AI-based aerial recognition and satellite change detection system.
+Production-ready monorepo for aircraft intelligence and satellite change detection.
 
 ### Structure
 
-- **backend**: FastAPI application exposing HTTP APIs and orchestrating inference.
-- **ml-core**: PyTorch-based ML core packaged as a standalone library with models, preprocessing, and inference utilities.
-- **frontend**: React SPA for visualization, annotations, and change-detection workflows.
-- **docker-compose.yml**: Orchestration for API and frontend services.
+- **backend**: FastAPI APIs and inference services.
+- **ml_core**: PyTorch/ONNX model pipelines and training/export scripts.
+- **frontend**: Next.js UI (home + operations dashboard components).
+- **ml_inference**: Placeholder for unified inference runners (current pipelines live in backend + ml_core).
 
-### High-level Architecture
+### Local Start Commands (Windows)
 
-- **ML core isolation**: All model definitions, preprocessing, and inference pipelines live in `ml-core/aether_ml`. The FastAPI app only calls into this package.
-- **Backend**: Async FastAPI app, structured into `api` (routes), `schemas` (Pydantic models), `services` (business logic), and `core` (config, logging, app wiring).
-- **Frontend**: React + TypeScript + Vite skeleton for a dashboard that talks to the FastAPI backend.
-
-### Local Development (Python parts)
-
-From the repo root:
-
-```bash
-cd ml-core
-pip install -e .
-
-cd ../backend
-pip install -e .
-```
-
-Run the API locally:
-
-```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### Training (Windows, `C:\mlenv`)
-
-Assuming you have a Python 3.10 virtual environment at `C:\mlenv` and your datasets
-are configured via environment variables or `config.yaml`:
+Shortcut scripts (run from repo root):
 
 ```powershell
-C:\mlenv\Scripts\activate
-pip install -r requirements.txt
-python train_change_detection.py
+powershell -ExecutionPolicy Bypass -File .\scripts\start-backend.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\start-frontend.ps1
 ```
 
-Configuration options:
-
-- **Satellite change detection (Siamese U-Net)**
-  - Environment variables:
-    - `SATELLITE_CHANGE_ROOT`
-    - `SATELLITE_CHANGE_TRAIN_LIST`
-    - `SATELLITE_CHANGE_VAL_LIST`
-  - Or `config.yaml`:
-    - `satellite_change.root`
-    - `satellite_change.train_list`
-    - `satellite_change.val_list`
-
-- **Aircraft classification (ViT, FGVC Aircraft)**
-  - Environment:
-    - `FGVC_AIRCRAFT_ROOT`
-  - Or `config.yaml`:
-    - `aircraft_fgvc.root`
-
-For exporting a trained YOLOv8 aircraft detector to ONNX:
+If you are already inside `backend`:
 
 ```powershell
-C:\mlenv\Scripts\activate
-pip install -r requirements.txt
-set YOLO_WEIGHTS_PATH=path\to\yolov8_aircraft.pt
-set YOLO_ONNX_OUTPUT_DIR=artifacts\onnx
-python export_aircraft_detector_onnx.py
+powershell -ExecutionPolicy Bypass -File .\scripts\start-backend.ps1
 ```
 
+Backend (FastAPI):
 
-### Docker / Compose
-
-Build and run the stack:
-
-```bash
-docker compose build
-docker compose up -d
+```powershell
+cd C:\Computing\Aether-eye\backend
+$env:PYTHONPATH="C:\Computing\Aether-eye\ml_core"
+$env:BACKEND_PYTHON_EXECUTABLE="C:\mlenv\Scripts\python.exe"
+& "C:\mlenv\Scripts\python.exe" -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-This will:
+Frontend (Next.js):
 
-- Build the backend image, install the `aether-ml-core` package from `ml-core`, and serve FastAPI with Gunicorn/Uvicorn.
-- Build the frontend image, bundle the React app, and serve static assets via Nginx.
+```powershell
+cd C:\Computing\Aether-eye\frontend
+npm install
+npm run dev
+```
 
+Production frontend run:
+
+```powershell
+cd C:\Computing\Aether-eye\frontend
+npm run build
+npm run start
+```
+
+### Notes
+
+- If backend import fails for `aether_ml`, verify `PYTHONPATH` points to `C:\Computing\Aether-eye\ml_core`.
+- Backend startup scripts auto-detect Python at `C:\mlenv\Scripts\python.exe` or `C:\mlenv\venv\Scripts\python.exe`.
+- Frontend now uses a built-in Next.js `/api/*` proxy to backend, so you no longer need to set `NEXT_PUBLIC_API_BASE_URL` for local runs.
+- Intelligence processing is now wired to actual ONNX change detection + YOLO aircraft detection/classification. Use the `/api/intelligence/process` endpoint with image paths on disk and optional `geo_bounds` for lat/lon mapping.
+
+### Stanford VisionBasedAircraftDAA Integration
+
+Generate 500 synthetic samples from Stanford generator (copies output into `data/raw/stanford_aircraft/...`):
+
+```powershell
+cd C:\Computing\Aether-eye
+& "C:\mlenv\venv\Scripts\python.exe" .\scripts\generate_stanford_aircraft_data.py `
+  --dataset-name stanford_military_500 `
+  --craft "King Air C90" `
+  --train 450 `
+  --valid 50 `
+  --location "Palo Alto"
+```
+
+Convert Stanford output to YOLOv8 format (`images/`, `labels/`, `data.yaml`):
+
+```powershell
+cd C:\Computing\Aether-eye
+& "C:\mlenv\venv\Scripts\python.exe" .\scripts\convert_stanford_to_yolov8.py `
+  --input-dir .\data\raw\stanford_aircraft\stanford_military_500 `
+  --output-dir .\data\processed\stanford_yolo
+```
+
+Prepare ImageFolder classification dataset from Stanford metadata:
+
+```powershell
+cd C:\Computing\Aether-eye
+& "C:\mlenv\venv\Scripts\python.exe" .\scripts\prepare_stanford_classification_dataset.py `
+  --input-dir .\data\raw\stanford_aircraft\stanford_military_500 `
+  --output-dir .\data\processed\stanford_aircraft_cls
+```
+
+Train ViT on generated classification data:
+
+```powershell
+cd C:\Computing\Aether-eye
+& "C:\mlenv\venv\Scripts\python.exe" .\scripts\train_vit_stanford.py `
+  --data-root .\data\processed\stanford_aircraft_cls `
+  --output-dir .\experiments\aircraft\stanford_vit `
+  --model vit_small_patch16_224 `
+  --epochs 20 `
+  --batch-size 16
+```
+
+Download SpaceNet-7 and DOTA using KaggleHub into change-detection dataset root:
+
+```powershell
+cd C:\Computing\Aether-eye
+& "C:\mlenv\venv\Scripts\python.exe" .\scripts\download_kaggle_satellite_datasets.py `
+  --target-root .\ml_core\DATASET\Satellite-Change
+```
+
+Add extra Kaggle datasets (format `name=kaggle_id`):
+
+```powershell
+& "C:\mlenv\venv\Scripts\python.exe" .\scripts\download_kaggle_satellite_datasets.py `
+  --target-root .\ml_core\DATASET\Satellite-Change `
+  --dataset levir=levirmcd/your-kaggle-id-here
+```
+
+Note:
+- VisionBasedAircraftDAA generator supports aircraft configured in its `constants.py` (`Cessna Skyhawk`, `Boeing 737-800`, `King Air C90`) unless that repo is extended with additional aircraft definitions.

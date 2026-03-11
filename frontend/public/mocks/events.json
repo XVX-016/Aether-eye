@@ -1,0 +1,31 @@
+[
+  {
+    "event_id": "evt_101",
+    "type": "aircraft_arrival",
+    "lat": 25.1983,
+    "lon": 55.2796,
+    "confidence": 0.92,
+    "aircraft_class": "F-16",
+    "timestamp": "2026-03-07T10:00:00Z",
+    "priority": "HIGH"
+  },
+  {
+    "event_id": "evt_102",
+    "type": "infrastructure_change",
+    "lat": 25.2048,
+    "lon": 55.2708,
+    "confidence": 0.88,
+    "timestamp": "2026-03-07T11:30:00Z",
+    "priority": "MEDIUM"
+  },
+  {
+    "event_id": "evt_103",
+    "type": "aircraft_departure",
+    "lat": 25.2100,
+    "lon": 55.2850,
+    "confidence": 0.95,
+    "aircraft_class": "Boeing 737",
+    "timestamp": "2026-03-07T14:45:00Z",
+    "priority": "LOW"
+  }
+]

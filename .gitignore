@@ -35,9 +35,15 @@ Thumbs.db
 .env.*
 
 *.log
+debug_train_output.txt
+stderr.txt
+response.json
+
+# Local outputs
+output/
 
 # Datasets / large assets
-ml-core/DATASET/
+ml_core/DATASET/
 **/DATASET/
 **/datasets/
 **/data/
@@ -59,4 +65,6 @@ runs/
 # Local runtime
 *.sqlite
 *.db
+
+VisionBasedAircraftDAA/
 

@@ -37,6 +37,18 @@ class ChangeDetectionResponse(BaseModel):
         default=None,
         description="Optional base64-encoded PNG (grayscale) of the change probability mask.",
     )
+    changed_pixels: int | None = Field(
+        default=None,
+        ge=0,
+        description="Optional number of pixels above the configured binary threshold.",
+    )
+    overlay_base64: str | None = Field(
+        default=None,
+        description="Optional base64-encoded PNG overlay rendered over the after image.",
+    )
+    debug: dict[str, float] | None = Field(
+        default=None, description="Optional debug stats for inputs/logits/masks."
+    )
     inference_time_ms: float | None = Field(
         default=None, description="End-to-end inference time in milliseconds."
     )

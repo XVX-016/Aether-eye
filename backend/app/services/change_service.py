@@ -7,6 +7,7 @@ from typing import Any
 import base64
 import io
 import json
+import time
 
 import cv2
 import numpy as np
@@ -96,18 +97,22 @@ def predict_change(
     before_bgr: np.ndarray,
     after_bgr: np.ndarray,
     include_overlay: bool,
+    debug: bool = False,
 ) -> dict[str, Any]:
     cfg = get_change_detector_config()
     model = get_change_detector_v1()
-    result = model.run(before_bgr, after_bgr, semantic=False)
+    result = model.run(before_bgr, after_bgr, semantic=False, debug=debug)
 
     prob = np.clip(result.change_mask, 0.0, 1.0)
+    change_score = float(prob.mean())
+    prob_mask_u8 = np.clip(prob * 255.0, 0, 255).astype(np.uint8)
     binary = (prob > cfg.threshold).astype(np.uint8)
     changed_pixels = int(binary.sum())
     total = int(binary.size)
     change_ratio = float(changed_pixels / max(1, total))
     mask_u8 = (binary * 255).astype(np.uint8)
     mask_base64 = _to_base64_png_gray(mask_u8)
+    prob_mask_base64 = _to_base64_png_gray(prob_mask_u8)
 
     overlay_base64 = None
     if include_overlay:
@@ -115,7 +120,7 @@ def predict_change(
         red = np.zeros_like(after_rgb, dtype=np.uint8)
         red[..., 0] = 255
         alpha = float(np.clip(cfg.overlay_alpha, 0.0, 1.0))
-        mask3 = (binary[..., None] > 0).astype(np.float32)
+        mask3 = prob[..., None].astype(np.float32)
         over = (after_rgb.astype(np.float32) * (1.0 - alpha * mask3) + red.astype(np.float32) * (alpha * mask3)).astype(
             np.uint8
         )
@@ -123,9 +128,12 @@ def predict_change(
 
     return {
         "mask_base64": mask_base64,
+        "prob_mask_base64": prob_mask_base64,
+        "change_score": change_score,
         "change_ratio": change_ratio,
         "changed_pixels": changed_pixels,
         "overlay_base64": overlay_base64,
+        "debug": result.debug,
         "model_name": model.model_name,
         "device_used": model.runtime_device,
     }
@@ -157,4 +165,40 @@ def get_change_metrics() -> dict[str, float]:
         "best_val_precision": float(payload["best_val_precision"]),
         "best_val_recall": float(payload["best_val_recall"]),
         "best_val_pixel_accuracy": float(payload["best_val_pixel_accuracy"]),
+    }
+
+
+def benchmark_change_latency(
+    runs: int = 50,
+    input_height: int = 1024,
+    input_width: int = 1024,
+) -> dict[str, float | int | str]:
+    if runs < 1:
+        raise RuntimeError("runs must be >= 1")
+    if input_height < 1 or input_width < 1:
+        raise RuntimeError("input_height/input_width must be >= 1")
+
+    model = get_change_detector_v1()
+    before = np.zeros((input_height, input_width, 3), dtype=np.uint8)
+    after = np.zeros((input_height, input_width, 3), dtype=np.uint8)
+
+    # Warmup run to exclude startup overhead from measured distribution.
+    _ = model.run(before, after, semantic=False)
+
+    timings_ms: list[float] = []
+    for _ in range(runs):
+        t0 = time.perf_counter()
+        _ = model.run(before, after, semantic=False)
+        timings_ms.append((time.perf_counter() - t0) * 1000.0)
+
+    arr = np.asarray(timings_ms, dtype=np.float64)
+    return {
+        "runs": int(runs),
+        "mean_ms": float(arr.mean()),
+        "median_ms": float(np.median(arr)),
+        "p95_ms": float(np.percentile(arr, 95)),
+        "std_ms": float(arr.std(ddof=0)),
+        "device_used": str(model.runtime_device),
+        "input_height": int(input_height),
+        "input_width": int(input_width),
     }

@@ -1,0 +1,9 @@
+collections:
+  - sentinel-2-l2a
+asset_key: visual
+max_cloud_cover: 20
+poll_minutes: 180
+aoi_list:
+  - id: dubai_airport
+    enabled: true
+    bbox: [55.33, 25.23, 55.40, 25.27]
