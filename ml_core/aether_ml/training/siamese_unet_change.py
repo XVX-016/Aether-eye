@@ -6,32 +6,36 @@ from typing import Dict, Tuple
 
 import torch
 from torch import nn
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 from torchvision.transforms import InterpolationMode
 import torchvision.transforms.functional as F
 from tqdm import tqdm
 
 from aether_ml.config import SiameseChangeConfig
 from aether_ml.datasets import MultiTemporalChangeDataset
-from aether_ml.models.siamese_unet import SiameseUNetChangeDetector
-from aether_ml.evaluation.metrics import HybridLoss, FocalTverskyLoss, HybridTverskyLoss
+from aether_ml.evaluation.metrics import HybridLoss, HybridTverskyLoss
 from aether_ml.models.factory import create_model
 
-
-import torchvision.transforms.functional as TF
 import torchvision.transforms as T
-import random
 
 class PairedTransformTrain:
     """
     Apply the same geometric augmentations to before/after images and mask.
     """
 
-    def __init__(self, image_size: int = 256) -> None:
+    def __init__(self, image_size: int = 256, use_resize_crop: bool = True) -> None:
         self.image_size = image_size
+        self.use_resize_crop = use_resize_crop
 
     def __call__(self, before, after, mask):
-        # Random crop removed per user request for LEVIR-CD full-scene context
+        if self.use_resize_crop:
+            scale = random.uniform(0.6, 1.4)
+            crop_h = max(1, min(before.size[1], int(round(self.image_size / max(scale, 1e-6)))))
+            crop_w = max(1, min(before.size[0], int(round(self.image_size / max(scale, 1e-6)))))
+            i, j, h, w = T.RandomCrop.get_params(before, output_size=(crop_h, crop_w))
+            before = F.crop(before, i, j, h, w)
+            after = F.crop(after, i, j, h, w)
+            mask = F.crop(mask, i, j, h, w)
 
         # 2. Random horizontal flip
         if random.random() > 0.5:
@@ -128,7 +132,7 @@ def _collate_change(batch):
 def _create_dataloaders(cfg: SiameseChangeConfig) -> Tuple[DataLoader, DataLoader]:
     cfg = cfg.resolved()
 
-    train_tf = PairedTransformTrain(cfg.image_size)
+    train_tf = PairedTransformTrain(cfg.image_size, use_resize_crop=cfg.use_resize_crop)
     val_tf = PairedTransformVal(cfg.image_size)
 
     train_ds = MultiTemporalChangeDataset(
@@ -272,7 +276,10 @@ def train_siamese_unet_change(cfg: SiameseChangeConfig) -> Dict[str, float]:
     train_loader, val_loader = _create_dataloaders(cfg)
     model = _create_model_from_factory(cfg, device)
 
-    criterion = HybridTverskyLoss(bce_weight=0.5, tversky_weight=0.5)
+    if cfg.loss_name.lower() == "bce_dice":
+        criterion = HybridLoss(bce_weight=0.4, dice_weight=0.6)
+    else:
+        criterion = HybridTverskyLoss(bce_weight=0.4, tversky_weight=0.6, alpha=0.3, beta=0.7, gamma=0.75)
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=cfg.learning_rate,
@@ -289,7 +296,9 @@ def train_siamese_unet_change(cfg: SiameseChangeConfig) -> Dict[str, float]:
     # Auto-resume from previous latest checkpoint if it exists (else best)
     latest_path = cfg.output_dir / "siamese_unet_change_latest.pt"
     best_path = cfg.output_dir / "siamese_unet_change_best.pt"
-    resume_path = latest_path if latest_path.exists() else (best_path if best_path.exists() else None)
+    resume_path = None
+    if cfg.resume:
+        resume_path = latest_path if latest_path.exists() else (best_path if best_path.exists() else None)
     
     if resume_path:
         print(f"Resuming training from checkpoint: {resume_path}")

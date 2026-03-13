@@ -5,11 +5,11 @@ from fastapi import APIRouter
 from app.schemas.inference import ChangeDetectionRequest, ChangeDetectionResponse
 from app.services.inference_service import inference_service
 
-router = APIRouter(prefix="/v1/change-detection-json", tags=["inference"])
+router = APIRouter(prefix="/v1", tags=["inference"])
 
 
 @router.post(
-    "",
+    "/change-detection-json",
     response_model=ChangeDetectionResponse,
     summary="Run satellite change detection on a pair of images.",
 )

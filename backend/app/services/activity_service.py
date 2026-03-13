@@ -4,11 +4,12 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Iterable
+import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import AircraftActivityEvent, IntelligenceEvent as DBEvent
+from app.database.models import ActivityAlert, ObjectEvent as DBEvent
 
 
 @dataclass
@@ -112,15 +113,17 @@ async def aggregate_aircraft_activity(
     created = 0
     for payload in payloads:
         exists = await session.execute(
-            select(AircraftActivityEvent).where(
-                AircraftActivityEvent.tile_id == payload.tile_id,
-                AircraftActivityEvent.event_type == payload.event_type,
-                AircraftActivityEvent.window_end == payload.window_end,
+            select(ActivityAlert).where(
+                ActivityAlert.tile_id == payload.tile_id,
+                ActivityAlert.event_type == payload.event_type,
+                ActivityAlert.window_end == payload.window_end,
             )
         )
         if exists.scalar_one_or_none():
             continue
-        event = AircraftActivityEvent(
+        event = ActivityAlert(
+            alert_id=str(uuid.uuid4()),
+            alert_type=payload.event_type,
             tile_id=payload.tile_id,
             event_type=payload.event_type,
             window_start=payload.window_start,
@@ -128,8 +131,8 @@ async def aggregate_aircraft_activity(
             previous_count=payload.previous_count,
             current_count=payload.current_count,
             delta=payload.delta,
+            severity="MEDIUM",
         )
         session.add(event)
         created += 1
     return created
-

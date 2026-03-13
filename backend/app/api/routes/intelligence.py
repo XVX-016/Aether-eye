@@ -11,7 +11,7 @@ from app.schemas.intelligence import IntelligenceEvent, IntelligenceProcessReque
 from app.core.tasks import create_job, get_job, list_jobs, process_satellite_intelligence_task, JobStatus
 from app.services.intelligence_service import GeoBounds, process_intelligence_arrays, persist_events
 from app.database.session import get_db
-from app.database.models import IntelligenceEvent as DBEvent, AircraftActivityEvent as DBAircraftActivity, SatelliteScene as DBSatelliteScene
+from app.database.models import ActivityAlert as DBAircraftActivity, ObjectEvent as DBEvent, SatelliteScene as DBSatelliteScene
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ml_inference.geo_projection import GeoContext, geo_context_from_bounds

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import random
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict
 
 import numpy as np
 import torch
@@ -21,6 +21,7 @@ except Exception:  # pragma: no cover
 
 from aether_ml.config import ChangeUnetConfig
 from aether_ml.datasets import LevirChangeDataset
+from aether_ml.evaluation.metrics import HybridTverskyLoss
 from aether_ml.models.siamese_unet_resnet34 import SiameseUNetResNet34
 
 
@@ -31,10 +32,14 @@ class PairedTransformTrain:
         self.crop_retries = int(crop_retries)
 
     def __call__(self, before, after, mask):
-        # Positive-aware crop sampling to reduce all-background batches.
+        # RandomResizedCrop-style positive-aware sampling reduces all-background
+        # batches while improving scale robustness.
         chosen = None
         for _ in range(max(1, self.crop_retries)):
-            i, j, h, w = transforms.RandomCrop.get_params(before, output_size=(self.image_size, self.image_size))
+            scale = random.uniform(0.6, 1.4)
+            crop_h = max(1, min(before.size[1], int(round(self.image_size / max(scale, 1e-6)))))
+            crop_w = max(1, min(before.size[0], int(round(self.image_size / max(scale, 1e-6)))))
+            i, j, h, w = transforms.RandomCrop.get_params(before, output_size=(crop_h, crop_w))
             m = TF.crop(mask, i, j, h, w)
             m_np = np.asarray(m, dtype=np.uint8)
             ratio = float((m_np > 127).mean())
@@ -55,6 +60,10 @@ class PairedTransformTrain:
             before = TF.vflip(before)
             after = TF.vflip(after)
             mask = TF.vflip(mask)
+
+        before = TF.resize(before, [self.image_size, self.image_size], interpolation=InterpolationMode.BILINEAR)
+        after = TF.resize(after, [self.image_size, self.image_size], interpolation=InterpolationMode.BILINEAR)
+        mask = TF.resize(mask, [self.image_size, self.image_size], interpolation=InterpolationMode.NEAREST)
 
         before_t = TF.to_tensor(before)
         after_t = TF.to_tensor(after)
@@ -89,20 +98,6 @@ class PairedTransformVal:
         after_t = (after_t - mean) / std
         mask_t = (TF.to_tensor(mask) > (127.0 / 255.0)).float()
         return before_t, after_t, mask_t
-
-
-class BCEDiceLoss(nn.Module):
-    def __init__(self) -> None:
-        super().__init__()
-        self.bce = nn.BCEWithLogitsLoss()
-
-    def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
-        bce = self.bce(logits, targets)
-        probs = torch.sigmoid(logits)
-        intersection = (probs * targets).sum(dim=(2, 3))
-        union = probs.sum(dim=(2, 3)) + targets.sum(dim=(2, 3))
-        dice = 1.0 - (2.0 * intersection + 1e-6) / (union + 1e-6)
-        return bce + dice.mean()
 
 
 def _collate(batch):
@@ -250,7 +245,7 @@ def train_change_unet(cfg: ChangeUnetConfig) -> Dict[str, float]:
 
     train_loader, val_loader = _create_dataloaders(cfg)
     model = SiameseUNetResNet34(pretrained=True).to(device)
-    criterion = BCEDiceLoss()
+    criterion = HybridTverskyLoss(bce_weight=0.4, tversky_weight=0.6, alpha=0.3, beta=0.7, gamma=0.75)
     optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.learning_rate, weight_decay=cfg.weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg.epochs)
     scaler = torch.amp.GradScaler(device="cuda", enabled=bool(cfg.amp and device.type == "cuda"))

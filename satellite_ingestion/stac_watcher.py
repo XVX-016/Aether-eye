@@ -51,3 +51,4 @@ async def run_once() -> list[str]:
             scene_ids.extend(added)
         await session.commit()
     return scene_ids
+# DEPRECATED: superseded by backend/pipeline/

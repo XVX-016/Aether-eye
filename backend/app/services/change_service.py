@@ -12,10 +12,11 @@ import time
 import cv2
 import numpy as np
 from PIL import Image
-import torch
 import yaml
-
-from aether_ml import ChangeDetectionOnnxPipeline
+try:
+    import torch
+except Exception:  # pragma: no cover - optional runtime dependency
+    torch = None
 
 from app.core.config import get_settings
 
@@ -71,11 +72,14 @@ def get_change_detector_config() -> ChangeDetectorConfig:
 
 
 @lru_cache
-def get_change_detector_v1() -> ChangeDetectionOnnxPipeline:
+def get_change_detector_v1():
+    from aether_ml import ChangeDetectionOnnxPipeline
+
     if ChangeDetectionOnnxPipeline is None:
         raise RuntimeError("ChangeDetectionOnnxPipeline unavailable.")
     cfg = get_change_detector_config()
-    _ = torch.cuda.is_available()  # preload CUDA DLLs for ORT provider on Windows
+    if torch is not None:
+        _ = torch.cuda.is_available()  # preload CUDA DLLs for ORT provider on Windows
     return ChangeDetectionOnnxPipeline(model_path=cfg.onnx_path, device="auto")
 
 
@@ -93,46 +97,58 @@ def _to_base64_png_rgb(img_rgb: np.ndarray) -> str:
     return base64.b64encode(buf.getvalue()).decode("utf-8")
 
 
-def predict_change(
+def _visualize_prob_mask(prob: np.ndarray) -> np.ndarray:
+    finite = prob[np.isfinite(prob)]
+    if finite.size == 0:
+        return np.zeros_like(prob, dtype=np.float32)
+    hi = float(np.percentile(finite, 99.5))
+    if hi <= 0.0:
+        hi = float(finite.max())
+    if hi <= 0.0:
+        return np.zeros_like(prob, dtype=np.float32)
+    vis = np.clip(prob / hi, 0.0, 1.0).astype(np.float32)
+    return np.power(vis, 0.35).astype(np.float32)
+
+
+def build_change_response(
     before_bgr: np.ndarray,
     after_bgr: np.ndarray,
-    include_overlay: bool,
+    include_mask: bool,
+    semantic: bool = False,
     debug: bool = False,
 ) -> dict[str, Any]:
     cfg = get_change_detector_config()
     model = get_change_detector_v1()
-    result = model.run(before_bgr, after_bgr, semantic=False, debug=debug)
+    result = model.run(before_bgr, after_bgr, semantic=semantic, debug=debug)
 
     prob = np.clip(result.change_mask, 0.0, 1.0)
     change_score = float(prob.mean())
-    prob_mask_u8 = np.clip(prob * 255.0, 0, 255).astype(np.uint8)
     binary = (prob > cfg.threshold).astype(np.uint8)
     changed_pixels = int(binary.sum())
-    total = int(binary.size)
-    change_ratio = float(changed_pixels / max(1, total))
-    mask_u8 = (binary * 255).astype(np.uint8)
-    mask_base64 = _to_base64_png_gray(mask_u8)
-    prob_mask_base64 = _to_base64_png_gray(prob_mask_u8)
 
+    change_mask_base64 = None
     overlay_base64 = None
-    if include_overlay:
+    if include_mask:
+        prob_mask_u8 = np.clip(prob * 255.0, 0, 255).astype(np.uint8)
+        change_mask_base64 = _to_base64_png_gray(prob_mask_u8)
+
         after_rgb = cv2.cvtColor(after_bgr, cv2.COLOR_BGR2RGB)
         red = np.zeros_like(after_rgb, dtype=np.uint8)
         red[..., 0] = 255
         alpha = float(np.clip(cfg.overlay_alpha, 0.0, 1.0))
-        mask3 = prob[..., None].astype(np.float32)
-        over = (after_rgb.astype(np.float32) * (1.0 - alpha * mask3) + red.astype(np.float32) * (alpha * mask3)).astype(
-            np.uint8
-        )
+        mask3 = _visualize_prob_mask(prob)[..., None]
+        over = (
+            after_rgb.astype(np.float32) * (1.0 - alpha * mask3)
+            + red.astype(np.float32) * (alpha * mask3)
+        ).astype(np.uint8)
         overlay_base64 = _to_base64_png_rgb(over)
 
     return {
-        "mask_base64": mask_base64,
-        "prob_mask_base64": prob_mask_base64,
         "change_score": change_score,
-        "change_ratio": change_ratio,
         "changed_pixels": changed_pixels,
+        "change_mask_base64": change_mask_base64,
         "overlay_base64": overlay_base64,
+        "regions": result.regions,
         "debug": result.debug,
         "model_name": model.model_name,
         "device_used": model.runtime_device,

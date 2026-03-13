@@ -120,3 +120,4 @@ if __name__ == "__main__":
     print("\nTest Ingestion Complete.")
     print("T1 Path:", t1_paths)
     print("T2 Path:", t2_paths)
+# DEPRECATED: superseded by backend/pipeline/

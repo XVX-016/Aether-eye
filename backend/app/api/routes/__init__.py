@@ -1,4 +1,16 @@
-from . import aircraft_inference, change_inference, health, inference, onnx_inference, vit_explainability
+"""Route package.
 
-__all__ = ["health", "inference", "onnx_inference", "vit_explainability", "aircraft_inference", "change_inference"]
+Keep package imports side-effect free so optional route modules can be loaded
+independently by `app.main`.
+"""
 
+__all__ = [
+    "health",
+    "inference",
+    "onnx_inference",
+    "vit_explainability",
+    "aircraft_inference",
+    "change_inference",
+    "intelligence",
+    "live_aircraft",
+]
