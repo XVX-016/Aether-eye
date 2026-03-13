@@ -4,7 +4,9 @@ import type {
     AircraftDetectionsResponse,
     AircraftGradCamResponse,
     ChangeDetectionResponse,
+    CountResponse,
 } from "./types";
+import type { OperationsEvent } from "@/types/operations";
 
 const api = axios.create({
     // Use Next.js same-origin API proxy to avoid browser CORS issues.
@@ -112,4 +114,33 @@ export async function fetchImagePreview(file: File) {
         ["/v1/change/preview-image"],
         form,
     );
+}
+
+export async function fetchOperationsEvents(params?: {
+    hours?: number;
+    limit?: number;
+    start?: string;
+    end?: string;
+}) {
+    const query = new URLSearchParams();
+    if (params?.hours != null) {
+        query.set("hours", String(params.hours));
+    }
+    if (params?.limit != null) {
+        query.set("limit", String(params.limit));
+    }
+    if (params?.start) {
+        query.set("start", params.start);
+    }
+    if (params?.end) {
+        query.set("end", params.end);
+    }
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    const res = await api.get<OperationsEvent[]>(`/events${suffix}`);
+    return res.data;
+}
+
+export async function fetchOperationsCount(path: "/scenes/count" | "/detections/count" | "/alerts/count") {
+    const res = await api.get<CountResponse>(path);
+    return res.data;
 }

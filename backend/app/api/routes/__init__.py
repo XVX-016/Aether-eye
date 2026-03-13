@@ -13,4 +13,5 @@ __all__ = [
     "change_inference",
     "intelligence",
     "live_aircraft",
+    "operations",
 ]

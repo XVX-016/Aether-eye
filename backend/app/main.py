@@ -141,6 +141,7 @@ def create_app() -> FastAPI:
         "change_inference",
         "intelligence",
         "live_aircraft",
+        "operations",
     ]
     for module_name in route_modules:
         try:

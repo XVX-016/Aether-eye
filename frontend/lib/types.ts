@@ -65,3 +65,7 @@ export type SystemMetricsSnapshot = {
     device_used?: string | null;
     confidence?: number | null;
 };
+
+export type CountResponse = {
+    count: number;
+};
