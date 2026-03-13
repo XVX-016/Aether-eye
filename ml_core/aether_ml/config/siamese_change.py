@@ -11,9 +11,10 @@ class SiameseChangeConfig:
     """
 
     # Data
-    root: Path = Path("C:/Computing/Aether-eye/data/processed/change_detection")
+    root: Path = Path("C:/Computing/Aether-eye/data/processed/building_change")
     train_list: Path = Path("train_list.txt")
     val_list: Path = Path("val_list.txt")
+    test_list: Path = Path("test_list.txt")
     image_size: int = 256
     batch_size: int = 4
     num_workers: int = 2
@@ -26,11 +27,14 @@ class SiameseChangeConfig:
     epochs: int = 200
     learning_rate: float = 1e-4
     weight_decay: float = 1e-4
+    loss_name: str = "hybrid_tversky"
 
     # Misc
     device: str = "cuda"
     output_dir: Path = Path("runs/siamese_unet_change")
     save_best: bool = True
+    resume: bool = True
+    use_resize_crop: bool = False
 
     def resolved(self) -> "SiameseChangeConfig":
         resolved_root = Path(self.root).expanduser().resolve()
@@ -48,6 +52,7 @@ class SiameseChangeConfig:
             root=resolved_root,
             train_list=resolved_train,
             val_list=resolved_val,
+            test_list=self.test_list,
             image_size=self.image_size,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
@@ -56,8 +61,11 @@ class SiameseChangeConfig:
             epochs=self.epochs,
             learning_rate=self.learning_rate,
             weight_decay=self.weight_decay,
+            loss_name=self.loss_name,
             device=self.device,
             output_dir=self.output_dir.expanduser().resolve(),
             save_best=self.save_best,
+            resume=self.resume,
+            use_resize_crop=self.use_resize_crop,
         )
 

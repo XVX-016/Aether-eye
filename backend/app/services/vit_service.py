@@ -6,14 +6,19 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-import onnxruntime as ort
 from PIL import Image
 import yaml
-import torch
-
-from aether_ml import ViTAircraftClassifierPipeline, ViTClassificationResult
+try:
+    import torch
+except Exception:  # pragma: no cover - optional runtime dependency
+    torch = None
 
 from app.core.config import get_settings
+
+try:
+    import onnxruntime as ort
+except Exception:  # pragma: no cover - optional runtime dependency
+    ort = None
 
 
 @dataclass
@@ -86,7 +91,11 @@ def get_aircraft_classifier_config() -> AircraftClassifierConfig:
 
 
 @lru_cache
-def get_vit_aircraft_pipeline() -> ViTAircraftClassifierPipeline:
+def get_vit_aircraft_pipeline():
+    if torch is None:
+        raise RuntimeError("torch is not installed.")
+    from aether_ml import ViTAircraftClassifierPipeline
+
     cfg = get_aircraft_classifier_config()
     return ViTAircraftClassifierPipeline(
         weights_path=cfg.model_path,
@@ -99,6 +108,8 @@ def get_vit_aircraft_pipeline() -> ViTAircraftClassifierPipeline:
 
 @lru_cache
 def get_aircraft_classifier_onnx_session() -> ort.InferenceSession:
+    if ort is None:
+        raise RuntimeError("onnxruntime is not installed.")
     cfg = get_aircraft_classifier_config()
     if not cfg.onnx_path:
         raise RuntimeError("onnx_path is not configured in aircraft classifier YAML.")
@@ -107,7 +118,8 @@ def get_aircraft_classifier_onnx_session() -> ort.InferenceSession:
         raise RuntimeError(f"Aircraft ONNX model not found: {p}")
     # Ensure CUDA/cuDNN DLLs are loaded from the active torch runtime on Windows.
     # Without this, ORT may silently fall back to CPU due to missing provider DLL deps.
-    _ = torch.cuda.is_available()
+    if torch is not None:
+        _ = torch.cuda.is_available()
     providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
     return ort.InferenceSession(str(p), providers=providers)
 
@@ -133,7 +145,9 @@ def _preprocess_imagenet_rgb(image_bgr: np.ndarray, image_size: int) -> np.ndarr
     return arr[None, ...].astype(np.float32)  # NCHW
 
 
-def classify_aircraft_onnx(image_bgr: np.ndarray) -> tuple[ViTClassificationResult, str]:
+def classify_aircraft_onnx(image_bgr: np.ndarray):
+    from aether_ml import ViTClassificationResult
+
     cfg = get_aircraft_classifier_config()
     session = get_aircraft_classifier_onnx_session()
     torch_pipeline = get_vit_aircraft_pipeline()

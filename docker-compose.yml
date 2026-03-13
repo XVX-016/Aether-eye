@@ -1,6 +1,24 @@
 version: "3.9"
 
 services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: aether-db
+    environment:
+      POSTGRES_DB: aether_eye
+      POSTGRES_USER: aether
+      POSTGRES_PASSWORD: aether
+    ports:
+      - "5432:5432"
+    volumes:
+      - aether-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aether -d aether_eye"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
   api:
     build:
       context: .
@@ -8,10 +26,15 @@ services:
     container_name: aether-api
     env_file:
       - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://aether:aether@db:5432/aether_eye
     ports:
       - "8000:8000"
     depends_on:
-      - ml_core-sync
+      db:
+        condition: service_healthy
+      ml_core-sync:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   frontend:
@@ -25,7 +48,6 @@ services:
       - api
     restart: unless-stopped
 
-  # Helper container to ensure ml_core is available at build time if needed
   ml_core-sync:
     image: alpine:3.19
     command: ["sh", "-c", "mkdir -p /opt && sleep 1"]
@@ -35,3 +57,5 @@ networks:
   default:
     name: aether-network
 
+volumes:
+  aether-postgres:

@@ -4,13 +4,13 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-from aether_ml import AircraftDetectionPipeline, ChangeDetectionOnnxPipeline
-
 from app.core.config import get_settings
 
 
 @lru_cache
-def get_aircraft_detector() -> AircraftDetectionPipeline:
+def get_aircraft_detector():
+    from aether_ml import AircraftDetectionPipeline
+
     if AircraftDetectionPipeline is None:
         raise RuntimeError("AircraftDetectionPipeline unavailable. Check ONNX runtime installation.")
     settings = get_settings()
@@ -32,7 +32,9 @@ def get_aircraft_detector() -> AircraftDetectionPipeline:
 
 
 @lru_cache
-def get_change_detector() -> ChangeDetectionOnnxPipeline:
+def get_change_detector():
+    from aether_ml import ChangeDetectionOnnxPipeline
+
     if ChangeDetectionOnnxPipeline is None:
         raise RuntimeError("ChangeDetectionOnnxPipeline unavailable. Check ONNX runtime installation.")
     settings = get_settings()

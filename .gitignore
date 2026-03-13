@@ -52,6 +52,8 @@ ml_core/DATASET/
 *.pt
 *.pth
 *.onnx
+*.out.log
+*.err.log
 *.ckpt
 *.npz
 *.npy

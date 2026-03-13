@@ -43,10 +43,11 @@ class HybridLoss(nn.Module):
 class FocalTverskyLoss(nn.Module):
     """
     Focal Tversky Loss
-    Designed to heavily penalize False Negatives (missing small objects like aircraft)
-    more than False Positives (guessing an aircraft).
+    Standard focal Tversky formulation:
+    TP / (TP + alpha * FP + beta * FN + eps)
+    Higher beta penalizes missed foreground harder.
     """
-    def __init__(self, alpha=0.7, beta=0.3, gamma=4/3, smooth=1.0):
+    def __init__(self, alpha=0.3, beta=0.7, gamma=0.75, smooth=1.0):
         super(FocalTverskyLoss, self).__init__()
         self.alpha = alpha
         self.beta = beta
@@ -64,7 +65,7 @@ class FocalTverskyLoss(nn.Module):
         FP = ((1 - targets) * preds).sum()
         FN = (targets * (1 - preds)).sum()
         
-        tversky = (TP + self.smooth) / (TP + self.alpha * FN + self.beta * FP + self.smooth)
+        tversky = (TP + self.smooth) / (TP + self.alpha * FP + self.beta * FN + self.smooth)
         focal_tversky = (1 - tversky) ** self.gamma
         
         return focal_tversky
@@ -74,7 +75,7 @@ class HybridTverskyLoss(nn.Module):
     BCE + Focal Tversky Loss
     Anchors the massive background to 0 using BCE while ruthlessly penalizing False Negatives on sparse foreground objects using Tversky.
     """
-    def __init__(self, bce_weight=0.5, tversky_weight=0.5, alpha=0.7, beta=0.3, gamma=4/3):
+    def __init__(self, bce_weight=0.4, tversky_weight=0.6, alpha=0.3, beta=0.7, gamma=0.75):
         super(HybridTverskyLoss, self).__init__()
         self.bce = nn.BCEWithLogitsLoss()
         self.tversky = FocalTverskyLoss(alpha=alpha, beta=beta, gamma=gamma)

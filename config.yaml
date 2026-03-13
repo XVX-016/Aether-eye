@@ -1,13 +1,11 @@
 satellite_change:
-  # Root directory containing before/after images and masks.
-  # Override with SATELLITE_CHANGE_ROOT if needed.
-  root: data/processed/change_detection
-  # Text files listing before/after/mask triplets (relative to `root`).
-  # Override with SATELLITE_CHANGE_TRAIN_LIST / SATELLITE_CHANGE_VAL_LIST.
+  root: data/processed/building_change
   train_list: train_list.txt
   val_list: val_list.txt
-
+  test_list: test_list.txt
 aircraft_fgvc:
-  # Root directory for FGVC Aircraft dataset.
-  # Override with FGVC_AIRCRAFT_ROOT if needed.
   root: data/raw/aircraft
+change_detection:
+  checkpoint: ml_core/artifacts/change_model_v2/change_model_v2.pt
+  model: siamese_unet
+  threshold: 0.5

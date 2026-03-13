@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import importlib
+import logging
 import os
 import sys
 from pathlib import Path
+
+import yaml
 
 repo_root = Path(__file__).resolve().parents[2]
 if str(repo_root) not in sys.path:
@@ -11,14 +15,50 @@ if str(repo_root) not in sys.path:
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import aircraft_inference, change_inference, health, inference, intelligence, onnx_inference, vit_explainability
 from app.core.config import get_settings
 from app.database.session import init_db, async_session
-import asyncio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from satellite_ingestion.stac_watcher import run_once as run_stac_watcher
-from app.core.tasks import create_scene_job, process_scene_job
+from pipeline.stac_watcher import run_watcher
 from app.services.activity_service import aggregate_aircraft_activity
+
+logger = logging.getLogger(__name__)
+
+
+def verify_change_model_assets() -> None:
+    config_path = repo_root / "config.yaml"
+    if not config_path.exists():
+        raise RuntimeError(f"Config file missing: {config_path}")
+
+    with config_path.open("r", encoding="utf-8") as handle:
+        cfg = yaml.safe_load(handle) or {}
+
+    change_cfg = cfg.get("change_detection", {})
+    checkpoint = change_cfg.get("checkpoint")
+    if not checkpoint:
+        raise RuntimeError("config.yaml missing change_detection.checkpoint")
+
+    checkpoint_path = (repo_root / checkpoint).resolve()
+    if not checkpoint_path.exists():
+        raise RuntimeError(f"Change model checkpoint missing: {checkpoint_path}")
+
+    inference_cfg_path = repo_root / "backend" / "configs" / "inference" / "change_detector.yaml"
+    if not inference_cfg_path.exists():
+        raise RuntimeError(f"Change detector config missing: {inference_cfg_path}")
+
+    with inference_cfg_path.open("r", encoding="utf-8") as handle:
+        inference_cfg = yaml.safe_load(handle) or {}
+
+    onnx_path = inference_cfg.get("onnx_path")
+    if not onnx_path:
+        raise RuntimeError(f"{inference_cfg_path} missing onnx_path")
+
+    onnx_file = Path(onnx_path)
+    if not onnx_file.is_absolute():
+        onnx_file = (repo_root / onnx_file).resolve()
+    if not onnx_file.exists():
+        raise RuntimeError(f"Change model ONNX missing: {onnx_file}")
+
+    logger.info("Change model v2 verified: checkpoint=%s onnx=%s", checkpoint_path, onnx_file)
 
 
 def create_app() -> FastAPI:
@@ -33,14 +73,12 @@ def create_app() -> FastAPI:
     @app.on_event("startup")
     async def on_startup():
         await init_db()
+        verify_change_model_assets()
         scheduler = AsyncIOScheduler()
         app.state.scheduler = scheduler
 
         async def stac_job():
-            scene_ids = await run_stac_watcher()
-            for scene_id in scene_ids:
-                job_id = create_scene_job(scene_id)
-                asyncio.create_task(process_scene_job(scene_id, job_id))
+            await run_watcher()
 
         async def activity_job():
             async with async_session() as session:
@@ -94,13 +132,22 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    app.include_router(health.router, prefix="/api")
-    app.include_router(inference.router, prefix="/api")
-    app.include_router(onnx_inference.router, prefix="/api")
-    app.include_router(vit_explainability.router, prefix="/api")
-    app.include_router(aircraft_inference.router, prefix="/api")
-    app.include_router(change_inference.router, prefix="/api")
-    app.include_router(intelligence.router, prefix="/api")
+    route_modules = [
+        "health",
+        "inference",
+        "onnx_inference",
+        "vit_explainability",
+        "aircraft_inference",
+        "change_inference",
+        "intelligence",
+        "live_aircraft",
+    ]
+    for module_name in route_modules:
+        try:
+            module = importlib.import_module(f"app.api.routes.{module_name}")
+            app.include_router(module.router, prefix="/api")
+        except Exception as exc:
+            logger.warning("Skipping route module %s due to import error: %s", module_name, exc)
 
     return app
 

@@ -1,8 +1,10 @@
+stac_url: https://catalogue.dataspace.copernicus.eu/stac
 collections:
   - sentinel-2-l2a
 asset_key: visual
 max_cloud_cover: 20
 poll_minutes: 180
+lookback_days: 14
 aoi_list:
   - id: dubai_airport
     enabled: true

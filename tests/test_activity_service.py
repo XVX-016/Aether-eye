@@ -1,10 +1,4 @@
 from datetime import datetime, timedelta, timezone
-import pytest
-
-try:
-    import aiosqlite  # noqa: F401
-except Exception:
-    pytest.skip("aiosqlite not available", allow_module_level=True)
 
 from app.database.models import IntelligenceEvent as DBEvent
 from app.services.activity_service import compute_activity_events
