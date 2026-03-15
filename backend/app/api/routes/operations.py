@@ -6,11 +6,11 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from pipeline.airbase_aggregator import get_airbase_status
+from pipeline.site_aggregator import get_site_status
 from app.database.crud import get_aoi_baseline
 from app.database.models import ActivityAlert, AoiDailyCount, ObjectEvent, SatelliteScene, TileDetection
 from app.database.session import get_db
-from app.schemas.operations import AoiBaselineResponse, AirbaseStatusResponse, CountResponse, OperationsEvent
+from app.schemas.operations import AoiBaselineResponse, CountResponse, OperationsEvent, SiteStatusResponse
 
 router = APIRouter(tags=["operations"])
 
@@ -174,10 +174,19 @@ async def get_aoi_baseline_debug(
     )
 
 
-@router.get("/airbase-status", response_model=list[AirbaseStatusResponse])
+@router.get("/site-status", response_model=list[SiteStatusResponse])
+async def get_site_status_endpoint(
+    days: int = Query(default=30, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+) -> list[SiteStatusResponse]:
+    rows = await get_site_status(db, lookback_days=days)
+    return [SiteStatusResponse(**row) for row in rows]
+
+
+@router.get("/airbase-status", response_model=list[SiteStatusResponse], deprecated=True)
 async def get_airbase_status_endpoint(
     days: int = Query(default=30, ge=1, le=365),
     db: AsyncSession = Depends(get_db),
-) -> list[AirbaseStatusResponse]:
-    rows = await get_airbase_status(db, lookback_days=days)
-    return [AirbaseStatusResponse(**row) for row in rows]
+) -> list[SiteStatusResponse]:
+    rows = await get_site_status(db, lookback_days=days)
+    return [SiteStatusResponse(**row) for row in rows]

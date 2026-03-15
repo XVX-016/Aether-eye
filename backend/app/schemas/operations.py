@@ -27,7 +27,7 @@ class AoiBaselineResponse(BaseModel):
     lookback_days: int
 
 
-class AirbaseStatusResponse(BaseModel):
+class SiteStatusResponse(BaseModel):
     id: str
     name: str
     type: str

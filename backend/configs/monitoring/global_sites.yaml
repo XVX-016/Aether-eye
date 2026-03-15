@@ -1,0 +1,163 @@
+sites:
+  - id: al_dhafra
+    name: Al Dhafra Air Base
+    country: UAE
+    type: MILITARY_AIRBASE
+    lat: 24.258
+    lon: 54.526
+    bbox: [54.476, 24.228, 54.576, 24.288]
+    priority: critical
+    tags: ["Al Dhafra", "UAE Air Force", "USAF UAE", "Al Dhafra Air Base"]
+  - id: al_udeid
+    name: Al Udeid Air Base
+    country: Qatar
+    type: MILITARY_AIRBASE
+    lat: 25.117
+    lon: 51.315
+    bbox: [51.310, 25.110, 51.330, 25.130]
+    priority: critical
+    tags: ["Al Udeid", "CENTCOM", "USAF Qatar", "Al Udeid Air Base"]
+  - id: diego_garcia
+    name: Diego Garcia
+    country: BIOT
+    type: MILITARY_AIRBASE
+    lat: -7.413
+    lon: 72.451
+    bbox: [72.420, -7.440, 72.490, -7.380]
+    priority: critical
+    tags: ["Diego Garcia", "BIOT base", "US military Indian Ocean"]
+  - id: ramstein
+    name: Ramstein Air Base
+    country: Germany
+    type: MILITARY_AIRBASE
+    lat: 49.437
+    lon: 7.600
+    bbox: [7.570, 49.420, 7.640, 49.460]
+    priority: high
+    tags: ["Ramstein", "Ramstein Air Base", "USAF Germany"]
+  - id: kadena
+    name: Kadena Air Base
+    country: Japan
+    type: MILITARY_AIRBASE
+    lat: 26.356
+    lon: 127.769
+    bbox: [127.740, 26.330, 127.800, 26.380]
+    priority: critical
+    tags: ["Kadena", "Kadena Air Base", "USAF Okinawa"]
+  - id: andersen_guam
+    name: Andersen AFB
+    country: Guam
+    type: MILITARY_AIRBASE
+    lat: 13.584
+    lon: 144.930
+    bbox: [144.900, 13.560, 144.960, 13.610]
+    priority: critical
+    tags: ["Andersen", "Andersen AFB", "Guam bomber base"]
+  - id: incirlik
+    name: Incirlik Air Base
+    country: Turkey
+    type: MILITARY_AIRBASE
+    lat: 37.002
+    lon: 35.426
+    bbox: [35.400, 36.980, 35.460, 37.030]
+    priority: high
+    tags: ["Incirlik", "Incirlik Air Base", "USAF Turkey"]
+  - id: al_asad
+    name: Al-Asad Air Base
+    country: Iraq
+    type: MILITARY_AIRBASE
+    lat: 33.786
+    lon: 42.441
+    bbox: [42.410, 33.760, 42.480, 33.820]
+    priority: high
+    tags: ["Al-Asad", "Al Asad Air Base", "Iraq air base"]
+  - id: bagram
+    name: Bagram Air Base
+    country: Afghanistan
+    type: MILITARY_AIRBASE
+    lat: 34.946
+    lon: 69.265
+    bbox: [69.240, 34.920, 69.300, 34.970]
+    priority: medium
+    tags: ["Bagram", "Bagram Air Base", "Afghanistan air base"]
+  - id: norfolk_naval
+    name: Naval Station Norfolk
+    country: USA
+    type: NAVAL_BASE
+    lat: 36.938
+    lon: -76.309
+    bbox: [-76.340, 36.910, -76.270, 36.960]
+    priority: high
+    tags: ["Norfolk", "Naval Station Norfolk", "US Navy Atlantic"]
+  - id: rota_naval
+    name: Naval Station Rota
+    country: Spain
+    type: NAVAL_BASE
+    lat: 36.645
+    lon: -6.349
+    bbox: [-6.380, 36.620, -6.310, 36.670]
+    priority: high
+    tags: ["Rota", "Naval Station Rota", "US Navy Spain"]
+  - id: pearl_harbor
+    name: Pearl Harbor Naval Base
+    country: USA
+    type: NAVAL_BASE
+    lat: 21.355
+    lon: -157.978
+    bbox: [-158.010, 21.330, -157.950, 21.380]
+    priority: high
+    tags: ["Pearl Harbor", "Pearl Harbor Naval Base", "US Pacific Fleet"]
+  - id: changi_naval
+    name: Changi Naval Base
+    country: Singapore
+    type: NAVAL_BASE
+    lat: 1.391
+    lon: 104.013
+    bbox: [103.990, 1.370, 104.040, 1.410]
+    priority: high
+    tags: ["Changi Naval Base", "Singapore Navy", "Changi"]
+  - id: strait_hormuz_north
+    name: Bandar Abbas Port
+    country: Iran
+    type: STRATEGIC_PORT
+    lat: 27.189
+    lon: 56.271
+    bbox: [56.240, 27.160, 56.310, 27.220]
+    priority: critical
+    tags: ["Bandar Abbas", "Strait of Hormuz", "Iran port"]
+  - id: aden_port
+    name: Port of Aden
+    country: Yemen
+    type: STRATEGIC_PORT
+    lat: 12.779
+    lon: 45.029
+    bbox: [44.990, 12.750, 45.070, 12.810]
+    priority: high
+    tags: ["Aden", "Port of Aden", "Yemen port"]
+  - id: jeddah_port
+    name: Jeddah Islamic Port
+    country: Saudi Arabia
+    type: STRATEGIC_PORT
+    lat: 21.462
+    lon: 39.143
+    bbox: [39.110, 21.430, 39.180, 21.490]
+    priority: medium
+    tags: ["Jeddah Islamic Port", "Jeddah port", "Red Sea shipping"]
+  - id: dubai_airport
+    name: Dubai International Airport
+    country: UAE
+    type: CIVIL_AIRPORT
+    lat: 25.253
+    lon: 55.366
+    bbox: [55.327, 25.229, 55.414, 25.278]
+    priority: high
+    tags: ["Dubai Airport", "Dubai International Airport", "DXB"]
+  - id: abu_dhabi_airport
+    name: Abu Dhabi International
+    country: UAE
+    type: CIVIL_AIRPORT
+    lat: 24.433
+    lon: 54.651
+    bbox: [54.636, 24.413, 54.696, 24.453]
+    priority: medium
+    tags: ["Abu Dhabi International", "AUH", "Abu Dhabi Airport"]

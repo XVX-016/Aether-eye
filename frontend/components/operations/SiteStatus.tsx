@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-import { fetchAirbaseStatus } from "@/lib/api";
-import type { AirbaseStatus } from "@/types/operations";
+import { fetchSiteStatus } from "@/lib/api";
+import type { SiteStatus } from "@/types/operations";
 
 const POLL_INTERVAL_MS = 60_000;
 
@@ -25,8 +25,8 @@ function statusStyle(status: string) {
     return { background: "rgba(34, 197, 94, 0.18)", color: "#86efac", border: "1px solid rgba(34, 197, 94, 0.45)" };
 }
 
-export function AirbaseStatusPanel() {
-    const [rows, setRows] = useState<AirbaseStatus[]>([]);
+export function SiteStatusPanel() {
+    const [rows, setRows] = useState<SiteStatus[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -34,7 +34,7 @@ export function AirbaseStatusPanel() {
 
         const load = async () => {
             try {
-                const data = await fetchAirbaseStatus(30);
+                const data = await fetchSiteStatus(30);
                 if (alive) {
                     setRows(data);
                 }
@@ -61,8 +61,8 @@ export function AirbaseStatusPanel() {
         <section className="glass-panel" style={{ padding: "1rem 1.1rem", marginTop: "1rem" }}>
             <div className="ops-panel-header" style={{ marginBottom: "0.75rem" }}>
                 <div>
-                    <div className="ops-kicker mono">Airbase Monitoring</div>
-                    <h2 className="ops-panel-title mono" style={{ fontSize: "1rem" }}>Airbase Status</h2>
+                    <div className="ops-kicker mono">Site Monitoring</div>
+                    <h2 className="ops-panel-title mono" style={{ fontSize: "1rem" }}>Site Status</h2>
                 </div>
                 <div className="ops-range-chip mono">{rows.length}</div>
             </div>
@@ -82,11 +82,11 @@ export function AirbaseStatusPanel() {
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan={6} style={{ padding: "0.85rem 0.35rem", color: "var(--text-muted)" }}>Loading airbase status...</td>
+                                <td colSpan={6} style={{ padding: "0.85rem 0.35rem", color: "var(--text-muted)" }}>Loading site status...</td>
                             </tr>
                         ) : rows.length === 0 ? (
                             <tr>
-                                <td colSpan={6} style={{ padding: "0.85rem 0.35rem", color: "var(--text-muted)" }}>No airbase status available.</td>
+                                <td colSpan={6} style={{ padding: "0.85rem 0.35rem", color: "var(--text-muted)" }}>No site status available.</td>
                             </tr>
                         ) : rows.map((row) => (
                             <tr key={row.id} style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>

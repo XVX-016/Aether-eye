@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 
 import { Navbar } from "@/components/Navbar";
-import { AirbaseStatusPanel } from "@/components/operations/AirbaseStatus";
 import { EventFeed } from "@/components/operations/EventFeed";
+import { SiteStatusPanel } from "@/components/operations/SiteStatus";
 import { StatCards } from "@/components/operations/StatCards";
 import { TimelineSlider } from "@/components/operations/TimelineSlider";
 import { fetchOperationsEvents } from "@/lib/api";
@@ -106,7 +106,7 @@ export default function OperationsPage() {
 
                 <div className="ops-dashboard">
                     <StatCards />
-                    <AirbaseStatusPanel />
+                    <SiteStatusPanel />
 
                     <div className="ops-content-grid">
                         <section className="ops-map-panel glass-panel">

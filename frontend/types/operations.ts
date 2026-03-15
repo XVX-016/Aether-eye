@@ -9,7 +9,7 @@ export interface OperationsEvent {
     aoi_name?: string;
 }
 
-export interface AirbaseStatus {
+export interface SiteStatus {
     id: string;
     name: string;
     type: string;

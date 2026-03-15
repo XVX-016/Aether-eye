@@ -6,7 +6,7 @@ import type {
     ChangeDetectionResponse,
     CountResponse,
 } from "./types";
-import type { AirbaseStatus, OperationsEvent } from "@/types/operations";
+import type { OperationsEvent, SiteStatus } from "@/types/operations";
 
 const api = axios.create({
     // Use Next.js same-origin API proxy to avoid browser CORS issues.
@@ -145,7 +145,7 @@ export async function fetchOperationsCount(path: "/scenes/count" | "/detections/
     return res.data;
 }
 
-export async function fetchAirbaseStatus(days = 30) {
-    const res = await api.get<AirbaseStatus[]>(`/airbase-status?days=${days}`);
+export async function fetchSiteStatus(days = 30) {
+    const res = await api.get<SiteStatus[]>(`/site-status?days=${days}`);
     return res.data;
 }

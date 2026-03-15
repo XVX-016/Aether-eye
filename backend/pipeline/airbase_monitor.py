@@ -1,35 +1,21 @@
 from __future__ import annotations
 
-from functools import lru_cache
-from pathlib import Path
 from typing import Any
 
-import yaml
+from pipeline.site_registry import get_site_for_point, get_sites_by_type, load_sites
+
+# DEPRECATED: kept as a thin compatibility shim while callers move to site_registry.py.
 
 
-def _config_path() -> Path:
-    return Path(__file__).resolve().parents[1] / "configs" / "monitoring" / "airbases.yaml"
-
-
-@lru_cache(maxsize=1)
 def load_airbases() -> list[dict[str, Any]]:
-    path = _config_path()
-    if not path.exists():
-        return []
-    with path.open("r", encoding="utf-8") as handle:
-        payload = yaml.safe_load(handle) or {}
-    return list(payload.get("airbases", []))
+    return [site for site in load_sites() if "AIRBASE" in str(site.get("type", ""))]
 
 
 def get_airbase_for_point(lat: float, lon: float) -> dict[str, Any] | None:
-    for airbase in load_airbases():
-        bbox = airbase.get("bbox")
-        if not bbox or len(bbox) != 4:
-            continue
-        min_lon, min_lat, max_lon, max_lat = bbox
-        if min_lon <= lon <= max_lon and min_lat <= lat <= max_lat:
-            return airbase
-    return None
+    site = get_site_for_point(lat, lon)
+    if site is None:
+        return None
+    return site if "AIRBASE" in str(site.get("type", "")) else None
 
 
 def get_airbases_for_bbox(bbox: list[float]) -> list[dict[str, Any]]:
@@ -37,7 +23,7 @@ def get_airbases_for_bbox(bbox: list[float]) -> list[dict[str, Any]]:
         return []
     min_lon, min_lat, max_lon, max_lat = bbox
     matches: list[dict[str, Any]] = []
-    for airbase in load_airbases():
+    for airbase in get_sites_by_type("MILITARY_AIRBASE") + get_sites_by_type("CIVIL_AIRPORT"):
         airbase_bbox = airbase.get("bbox")
         if not airbase_bbox or len(airbase_bbox) != 4:
             continue

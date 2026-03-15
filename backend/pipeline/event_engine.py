@@ -3,14 +3,12 @@ from __future__ import annotations
 import uuid
 from collections import defaultdict
 from datetime import datetime, timezone
-from functools import lru_cache
-from pathlib import Path
 from typing import Any
 
-import yaml
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.crud import get_aoi_baseline, increment_aoi_daily_count, save_event
+from pipeline.site_registry import get_site_for_point
 
 
 GRID_SIZE_DEGREES = 0.01
@@ -33,25 +31,9 @@ def _cell_center(cluster: list[dict[str, Any]]) -> tuple[float, float]:
     return mean_lat, mean_lon
 
 
-@lru_cache(maxsize=1)
-def _load_aoi_bboxes() -> list[dict[str, Any]]:
-    config_path = Path(__file__).resolve().parents[1] / "configs" / "ingestion" / "stac.yaml"
-    if not config_path.exists():
-        return []
-    with config_path.open("r", encoding="utf-8") as handle:
-        cfg = yaml.safe_load(handle) or {}
-    return list(cfg.get("aoi_list", []))
-
-
 def _resolve_aoi_id(lat: float, lon: float) -> str:
-    for aoi in _load_aoi_bboxes():
-        bbox = aoi.get("bbox")
-        if not bbox or len(bbox) != 4:
-            continue
-        min_lon, min_lat, max_lon, max_lat = bbox
-        if min_lon <= lon <= max_lon and min_lat <= lat <= max_lat:
-            return str(aoi.get("id") or "default")
-    return "default"
+    site = get_site_for_point(lat, lon)
+    return str(site.get("id")) if site is not None else "default"
 
 
 async def generate_events(
