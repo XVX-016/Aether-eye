@@ -37,3 +37,12 @@ class SiteStatusResponse(BaseModel):
     baseline: float | None = None
     anomaly_factor: float | None = None
     status: str
+
+
+class IntelArticleResponse(BaseModel):
+    title: str
+    url: str
+    source: str | None = None
+    source_tier: int
+    published_at: datetime | None = None
+    site_id: str

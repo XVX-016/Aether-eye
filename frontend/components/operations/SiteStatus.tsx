@@ -7,25 +7,35 @@ import type { SiteStatus } from "@/types/operations";
 
 const POLL_INTERVAL_MS = 60_000;
 
-function formatTitle(value: string) {
-    return value
-        .split("_")
-        .filter(Boolean)
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(" ");
+function formatLabel(value: string) {
+    return value.replaceAll("_", " ").toUpperCase();
 }
 
 function statusStyle(status: string) {
     if (status === "anomalous") {
-        return { background: "rgba(239, 68, 68, 0.18)", color: "#fca5a5", border: "1px solid rgba(239, 68, 68, 0.45)" };
+        return { border: "1px solid #7F1D1D", color: "#EF4444", padding: "1px 6px", fontSize: "0.6rem", letterSpacing: "0.1em", borderRadius: 2 };
     }
     if (status === "elevated") {
-        return { background: "rgba(245, 158, 11, 0.18)", color: "#fcd34d", border: "1px solid rgba(245, 158, 11, 0.45)" };
+        return { border: "1px solid #92400E", color: "#D97706", padding: "1px 6px", fontSize: "0.6rem", letterSpacing: "0.1em", borderRadius: 2 };
     }
-    return { background: "rgba(34, 197, 94, 0.18)", color: "#86efac", border: "1px solid rgba(34, 197, 94, 0.45)" };
+    return { border: "1px solid #374151", color: "#6B7280", padding: "1px 6px", fontSize: "0.6rem", letterSpacing: "0.1em", borderRadius: 2 };
 }
 
-export function SiteStatusPanel() {
+function priorityStyle(priority: string) {
+    if (priority === "critical") {
+        return { border: "1px solid #7F1D1D", color: "#9CA3AF" };
+    }
+    if (priority === "high") {
+        return { border: "1px solid #78350F", color: "#9CA3AF" };
+    }
+    return { border: "1px solid #374151", color: "#6B7280" };
+}
+
+type Props = {
+    onSiteClick?: (siteId: string) => void;
+};
+
+export function SiteStatusPanel({ onSiteClick }: Props) {
     const [rows, setRows] = useState<SiteStatus[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -58,7 +68,7 @@ export function SiteStatusPanel() {
     }, []);
 
     return (
-        <section className="glass-panel" style={{ padding: "1rem 1.1rem", marginTop: "1rem" }}>
+        <section className="glass-panel" style={{ padding: "1rem 1.1rem", marginTop: "1rem", borderRadius: 2 }}>
             <div className="ops-panel-header" style={{ marginBottom: "0.75rem" }}>
                 <div>
                     <div className="ops-kicker mono">Site Monitoring</div>
@@ -89,14 +99,22 @@ export function SiteStatusPanel() {
                                 <td colSpan={6} style={{ padding: "0.85rem 0.35rem", color: "var(--text-muted)" }}>No site status available.</td>
                             </tr>
                         ) : rows.map((row) => (
-                            <tr key={row.id} style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                            <tr
+                                key={row.id}
+                                style={{ borderTop: "1px solid rgba(255,255,255,0.06)", cursor: onSiteClick ? "pointer" : "default" }}
+                                onClick={() => onSiteClick?.(row.id)}
+                            >
                                 <td style={{ padding: "0.65rem 0.35rem", color: "var(--text-primary)", fontWeight: 600 }}>{row.name}</td>
-                                <td style={{ padding: "0.65rem 0.35rem", color: "var(--text-secondary)" }}>{formatTitle(row.type)}</td>
-                                <td style={{ padding: "0.65rem 0.35rem", color: "var(--text-secondary)" }}>{formatTitle(row.priority)}</td>
+                                <td className="mono" style={{ padding: "0.65rem 0.35rem", color: "#4B5563", fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase" }}>{formatLabel(row.type)}</td>
+                                <td style={{ padding: "0.65rem 0.35rem" }}>
+                                    <span className="mono" style={{ display: "inline-block", padding: "1px 6px", fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", borderRadius: 2, ...priorityStyle(row.priority) }}>
+                                        {row.priority}
+                                    </span>
+                                </td>
                                 <td style={{ padding: "0.65rem 0.35rem", textAlign: "right", color: "var(--text-primary)" }}>{row.today_count ?? "--"}</td>
                                 <td style={{ padding: "0.65rem 0.35rem", textAlign: "right", color: "var(--text-primary)" }}>{row.baseline != null && row.baseline > 0 ? row.baseline.toFixed(1) : "--"}</td>
                                 <td style={{ padding: "0.65rem 0.35rem", textAlign: "right" }}>
-                                    <span className="mono" style={{ display: "inline-block", padding: "0.18rem 0.55rem", borderRadius: 999, fontSize: "0.65rem", letterSpacing: "0.14em", textTransform: "uppercase", ...statusStyle(row.status) }}>
+                                    <span className="mono" style={{ display: "inline-block", textTransform: "uppercase", ...statusStyle(row.status) }}>
                                         {row.status}
                                     </span>
                                 </td>

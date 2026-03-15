@@ -35,11 +35,17 @@ function relativeTime(iso: string) {
     return `${diffDays}d ago`;
 }
 
-function badgeClass(confidence: number) {
-    if (confidence >= 0.8) {
+function badgeClass(event: OperationsEvent) {
+    if (event.event_type === "ACTIVITY_SURGE") {
         return { label: "HIGH", className: "ops-badge-high" };
     }
-    if (confidence >= 0.5) {
+    if (event.event_type === "ELEVATED_ACTIVITY" || event.event_type === "NEW_OBJECT") {
+        return { label: "MED", className: "ops-badge-medium" };
+    }
+    if ((event.confidence ?? 0) >= 0.7) {
+        return { label: "HIGH", className: "ops-badge-high" };
+    }
+    if ((event.confidence ?? 0) >= 0.4) {
         return { label: "MED", className: "ops-badge-medium" };
     }
     return { label: "LOW", className: "ops-badge-low" };
@@ -115,7 +121,7 @@ export function EventFeed({ events, onEventClick, loading }: Props) {
                     <div className="empty-state small empty-state-plain">No events in the selected window.</div>
                 ) : (
                     filteredEvents.map((event) => {
-                        const badge = badgeClass(event.confidence ?? 0);
+                        const badge = badgeClass(event);
                         return (
                             <button
                                 key={event.event_id}

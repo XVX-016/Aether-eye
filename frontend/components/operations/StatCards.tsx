@@ -128,8 +128,9 @@ export function StatCards() {
                         flex: "1 1 220px",
                         minWidth: 0,
                         padding: "1.15rem 1.2rem",
-                        borderLeft: `4px solid ${card.accent}`,
+                        borderTop: `1px solid ${card.accent}`,
                         background: "rgba(255,255,255,0.02)",
+                        borderRadius: 2,
                     }}
                 >
                     <div

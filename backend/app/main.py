@@ -23,6 +23,7 @@ from app.database.session import init_db, async_session
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from pipeline.stac_watcher import run_watcher
 from app.services.activity_service import aggregate_aircraft_activity
+from services.intel_feed import fetch_and_store_articles, retag_existing_articles
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +89,14 @@ def create_app() -> FastAPI:
                     logger.info("Backfilled %s aoi_daily_count rows", backfilled)
         except Exception as exc:
             logger.warning("AOI daily count backfill skipped due to error: %s", exc)
+        try:
+            async with async_session() as session:
+                stored = await fetch_and_store_articles(session)
+                logger.info("Intel feed: stored %s new articles", stored)
+                retagged = await retag_existing_articles(session)
+                logger.info("Intel re-tagged %s existing articles", retagged)
+        except Exception as exc:
+            logger.warning("Intel feed startup fetch skipped due to error: %s", exc)
         scheduler = AsyncIOScheduler()
         app.state.scheduler = scheduler
 
@@ -103,6 +112,16 @@ def create_app() -> FastAPI:
                     min_count=settings.activity_min_count,
                 )
                 await session.commit()
+
+        async def intel_feed_job():
+            try:
+                async with async_session() as session:
+                    stored = await fetch_and_store_articles(session)
+                    logger.info("Intel feed: stored %s new articles", stored)
+                    retagged = await retag_existing_articles(session)
+                    logger.info("Intel re-tagged %s existing articles", retagged)
+            except Exception as exc:
+                logger.warning("Intel feed scheduled fetch skipped due to error: %s", exc)
 
         if settings.enable_stac_watcher:
             scheduler.add_job(
@@ -120,6 +139,13 @@ def create_app() -> FastAPI:
                 id="activity_aggregator",
                 max_instances=1,
             )
+        scheduler.add_job(
+            intel_feed_job,
+            "interval",
+            minutes=30,
+            id="intel_feed_fetch",
+            max_instances=1,
+        )
         scheduler.start()
 
     @app.on_event("shutdown")

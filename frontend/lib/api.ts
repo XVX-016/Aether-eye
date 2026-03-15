@@ -6,7 +6,7 @@ import type {
     ChangeDetectionResponse,
     CountResponse,
 } from "./types";
-import type { OperationsEvent, SiteStatus } from "@/types/operations";
+import type { IntelArticle, OperationsEvent, SiteGeoJson, SiteIntelResponse, SiteStatus } from "@/types/operations";
 
 const api = axios.create({
     // Use Next.js same-origin API proxy to avoid browser CORS issues.
@@ -147,5 +147,31 @@ export async function fetchOperationsCount(path: "/scenes/count" | "/detections/
 
 export async function fetchSiteStatus(days = 30) {
     const res = await api.get<SiteStatus[]>(`/site-status?days=${days}`);
+    return res.data;
+}
+
+export async function fetchSitesGeoJson() {
+    const res = await api.get<SiteGeoJson>("/sites/geojson");
+    return res.data;
+}
+
+export async function fetchSiteIntel(siteId: string, hours = 48) {
+    const res = await api.get<SiteIntelResponse | SiteIntelResponse["articles"]>(`/sites/${encodeURIComponent(siteId)}/intel?hours=${hours}`);
+    if (Array.isArray(res.data)) {
+        return {
+            site_id: siteId,
+            articles: res.data,
+            hours,
+        } satisfies SiteIntelResponse;
+    }
+    return {
+        site_id: res.data.site_id ?? siteId,
+        articles: Array.isArray(res.data.articles) ? res.data.articles : [],
+        hours: res.data.hours ?? hours,
+    } satisfies SiteIntelResponse;
+}
+
+export async function fetchGlobalIntel(hours = 48) {
+    const res = await api.get<IntelArticle[]>(`/intel/global?hours=${hours}`);
     return res.data;
 }

@@ -7,10 +7,18 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pipeline.site_aggregator import get_site_status
+from pipeline.site_registry import get_all_sites_geojson
 from app.database.crud import get_aoi_baseline
 from app.database.models import ActivityAlert, AoiDailyCount, ObjectEvent, SatelliteScene, TileDetection
 from app.database.session import get_db
-from app.schemas.operations import AoiBaselineResponse, CountResponse, OperationsEvent, SiteStatusResponse
+from app.schemas.operations import (
+    AoiBaselineResponse,
+    CountResponse,
+    IntelArticleResponse,
+    OperationsEvent,
+    SiteStatusResponse,
+)
+from services.intel_feed import get_articles_for_site, get_global_articles
 
 router = APIRouter(tags=["operations"])
 
@@ -190,3 +198,27 @@ async def get_airbase_status_endpoint(
 ) -> list[SiteStatusResponse]:
     rows = await get_site_status(db, lookback_days=days)
     return [SiteStatusResponse(**row) for row in rows]
+
+
+@router.get("/sites/geojson")
+async def get_sites_geojson() -> dict:
+    return get_all_sites_geojson()
+
+
+@router.get("/sites/{site_id}/intel", response_model=list[IntelArticleResponse])
+async def get_site_intel(
+    site_id: str,
+    hours: int = Query(default=48, ge=1, le=24 * 30),
+    db: AsyncSession = Depends(get_db),
+) -> list[IntelArticleResponse]:
+    rows = await get_articles_for_site(db, site_id, hours)
+    return [IntelArticleResponse(site_id=site_id, **row) for row in rows]
+
+
+@router.get("/intel/global", response_model=list[IntelArticleResponse])
+async def get_global_intel(
+    hours: int = Query(default=48, ge=1, le=24 * 30),
+    db: AsyncSession = Depends(get_db),
+) -> list[IntelArticleResponse]:
+    rows = await get_global_articles(db, hours)
+    return [IntelArticleResponse(**row) for row in rows]

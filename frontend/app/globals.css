@@ -83,6 +83,7 @@ body {
   position: relative;
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
+  border-radius: 2px;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
 }
@@ -1548,21 +1549,24 @@ body {
 }
 
 .ops-filter-btn {
-  border: 1px solid var(--border-strong);
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--text-muted);
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #4b5563;
   font-family: "JetBrains Mono", monospace;
   font-size: 0.58rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   padding: 0.45rem 0.7rem;
   cursor: pointer;
+  border-radius: 0;
 }
 
 .ops-filter-btn-active,
 .ops-filter-btn:hover {
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.08);
+  color: #e5e7eb;
+  background: transparent;
+  border-bottom-color: #6b7280;
 }
 
 .ops-feed-list {
@@ -1582,6 +1586,7 @@ body {
   padding: 0.85rem 0.9rem;
   cursor: pointer;
   transition: border-color 0.18s ease, background 0.18s ease;
+  border-radius: 2px;
 }
 
 .ops-event-card:hover {
@@ -1602,28 +1607,30 @@ body {
   align-items: center;
   justify-content: center;
   min-width: 52px;
-  padding: 0.18rem 0.42rem;
+  padding: 1px 6px;
   border: 1px solid transparent;
-  font-size: 0.52rem;
+  font-size: 0.6rem;
   text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-radius: 2px;
 }
 
 .ops-badge-high {
-  border-color: rgba(239, 68, 68, 0.45);
-  color: #fca5a5;
-  background: rgba(239, 68, 68, 0.12);
+  border-color: #7f1d1d;
+  color: #ef4444;
+  background: transparent;
 }
 
 .ops-badge-medium {
-  border-color: rgba(245, 158, 11, 0.45);
-  color: #fcd34d;
-  background: rgba(245, 158, 11, 0.12);
+  border-color: #92400e;
+  color: #d97706;
+  background: transparent;
 }
 
 .ops-badge-low {
-  border-color: rgba(34, 197, 94, 0.45);
-  color: #86efac;
-  background: rgba(34, 197, 94, 0.12);
+  border-color: #374151;
+  color: #6b7280;
+  background: transparent;
 }
 
 .ops-event-time,

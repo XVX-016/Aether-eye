@@ -7,7 +7,7 @@ sites:
     lon: 54.526
     bbox: [54.476, 24.228, 54.576, 24.288]
     priority: critical
-    tags: ["Al Dhafra", "UAE Air Force", "USAF UAE", "Al Dhafra Air Base"]
+    tags: ["Al Dhafra", "UAE Air Force", "USAF UAE", "Abu Dhabi military", "Abu Dhabi air", "Khalifa City"]
   - id: al_udeid
     name: Al Udeid Air Base
     country: Qatar
@@ -16,7 +16,7 @@ sites:
     lon: 51.315
     bbox: [51.310, 25.110, 51.330, 25.130]
     priority: critical
-    tags: ["Al Udeid", "CENTCOM", "USAF Qatar", "Al Udeid Air Base"]
+    tags: ["Al Udeid", "CENTCOM", "Qatar air base", "USAF Qatar", "55th Wing", "379th", "Air Operations Center"]
   - id: diego_garcia
     name: Diego Garcia
     country: BIOT
@@ -25,7 +25,7 @@ sites:
     lon: 72.451
     bbox: [72.420, -7.440, 72.490, -7.380]
     priority: critical
-    tags: ["Diego Garcia", "BIOT base", "US military Indian Ocean"]
+    tags: ["Diego Garcia", "BIOT", "Indian Ocean base", "B-2 Diego", "British Indian Ocean", "Diego bomber"]
   - id: ramstein
     name: Ramstein Air Base
     country: Germany
@@ -34,7 +34,7 @@ sites:
     lon: 7.600
     bbox: [7.570, 49.420, 7.640, 49.460]
     priority: high
-    tags: ["Ramstein", "Ramstein Air Base", "USAF Germany"]
+    tags: ["Ramstein", "USAFE", "US Air Force Europe", "Kaiserslautern", "Air Force Europe", "86th Airlift"]
   - id: kadena
     name: Kadena Air Base
     country: Japan
@@ -43,7 +43,7 @@ sites:
     lon: 127.769
     bbox: [127.740, 26.330, 127.800, 26.380]
     priority: critical
-    tags: ["Kadena", "Kadena Air Base", "USAF Okinawa"]
+    tags: ["Kadena", "Okinawa military", "USAF Japan", "18th Wing", "Kadena Air Base", "Ryukyu"]
   - id: andersen_guam
     name: Andersen AFB
     country: Guam
@@ -52,7 +52,7 @@ sites:
     lon: 144.930
     bbox: [144.900, 13.560, 144.960, 13.610]
     priority: critical
-    tags: ["Andersen", "Andersen AFB", "Guam bomber base"]
+    tags: ["Andersen", "Guam air force", "USAF Guam", "Pacific bomber", "Andersen AFB", "Guam bomber"]
   - id: incirlik
     name: Incirlik Air Base
     country: Turkey
@@ -61,7 +61,7 @@ sites:
     lon: 35.426
     bbox: [35.400, 36.980, 35.460, 37.030]
     priority: high
-    tags: ["Incirlik", "Incirlik Air Base", "USAF Turkey"]
+    tags: ["Incirlik", "Turkey air base", "USAF Turkey", "39th Air Base", "39th Air Base Wing", "NATO Turkey"]
   - id: al_asad
     name: Al-Asad Air Base
     country: Iraq
@@ -124,7 +124,7 @@ sites:
     lon: 56.271
     bbox: [56.240, 27.160, 56.310, 27.220]
     priority: critical
-    tags: ["Bandar Abbas", "Strait of Hormuz", "Iran port"]
+    tags: ["Bandar Abbas", "Strait of Hormuz", "IRIAF", "Iranian navy", "IRGC Navy", "Hormuz"]
   - id: aden_port
     name: Port of Aden
     country: Yemen
@@ -133,7 +133,7 @@ sites:
     lon: 45.029
     bbox: [44.990, 12.750, 45.070, 12.810]
     priority: high
-    tags: ["Aden", "Port of Aden", "Yemen port"]
+    tags: ["Aden", "Yemen port", "Red Sea", "Houthi shipping", "Port of Aden", "Bab el-Mandeb", "Houthi attack"]
   - id: jeddah_port
     name: Jeddah Islamic Port
     country: Saudi Arabia
