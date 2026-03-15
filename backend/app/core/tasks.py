@@ -2,6 +2,7 @@ import uuid
 from typing import Dict, Optional, List
 from datetime import datetime
 from pathlib import Path
+import logging
 from pydantic import BaseModel, Field
 
 # In-memory job store for prototype (transition to Redis/DB later)
@@ -16,6 +17,7 @@ class JobStatus(BaseModel):
     scene_id: Optional[str] = None
 
 _jobs: Dict[str, JobStatus] = {}
+logger = logging.getLogger(__name__)
 
 def create_job() -> str:
     job_id = str(uuid.uuid4())
@@ -131,6 +133,7 @@ async def process_scene_job(scene_id: str, job_id: str | None = None) -> None:
     if job_id is None:
         job_id = create_scene_job(scene_id)
     try:
+        from pipeline.airbase_aggregator import aggregate_scene_for_airbases
         from pipeline.event_engine import generate_events
         from pipeline.scene_processor import process_scene
 
@@ -181,7 +184,14 @@ async def process_scene_job(scene_id: str, job_id: str | None = None) -> None:
             overlap=0,
             semantic=False,
         )
-        events = await generate_events(detections, scene.scene_id, persist=True)
+        async with async_session() as session:
+            events = await generate_events(detections, scene.scene_id, session)
+            try:
+                await aggregate_scene_for_airbases(scene.scene_id, detections, session)
+                await session.commit()
+            except Exception as agg_exc:
+                await session.rollback()
+                logger.warning("Airbase aggregation failed for scene %s: %s", scene.scene_id, agg_exc)
 
         update_job(
             job_id,

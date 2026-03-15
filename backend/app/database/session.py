@@ -30,6 +30,7 @@ def _ensure_engine_and_session() -> tuple[object, async_sessionmaker[AsyncSessio
             DATABASE_URL,
             echo=SQL_ECHO,
             pool_pre_ping=True,
+            connect_args={"ssl": False, "timeout": 10},
         )
         _async_session_factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     return engine, _async_session_factory

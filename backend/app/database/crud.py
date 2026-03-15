@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from geoalchemy2.elements import WKTElement
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import AOIRegistry, ObjectEvent, SatelliteScene, TileDetection
+from app.database.models import AOIRegistry, AoiDailyCount, ObjectEvent, SatelliteScene, TileDetection
 
 
 def _point_wkt(lat: float, lon: float) -> WKTElement:
@@ -294,3 +295,137 @@ async def get_detection_history_for_cell(
         .where(TileDetection.lon < lon_max)
     )
     return list(result.scalars().all())
+
+
+async def increment_aoi_daily_count(
+    db: AsyncSession,
+    aoi_id: str,
+    date: date,
+    event_type: str,
+    increment: int = 1,
+) -> None:
+    stmt = insert(AoiDailyCount).values(
+        aoi_id=aoi_id,
+        date=date,
+        event_type=event_type,
+        count=increment,
+    )
+    stmt = stmt.on_conflict_do_update(
+        constraint="uq_aoi_daily_counts_aoi_date_event",
+        set_={
+            "count": AoiDailyCount.count + stmt.excluded.count,
+            "updated_at": func.now(),
+        },
+    )
+    await db.execute(stmt)
+    await db.flush()
+
+
+async def get_aoi_baseline(
+    db: AsyncSession,
+    aoi_id: str,
+    event_type: str,
+    lookback_days: int = 30,
+) -> float:
+    today = datetime.now(timezone.utc).date()
+    since = today - timedelta(days=lookback_days)
+
+    result = await db.execute(
+        select(
+            func.count(AoiDailyCount.id),
+            func.avg(AoiDailyCount.count),
+        )
+        .where(AoiDailyCount.aoi_id == aoi_id)
+        .where(AoiDailyCount.event_type == event_type)
+        .where(AoiDailyCount.date >= since)
+        .where(AoiDailyCount.date < today)
+    )
+    sample_count, average = result.one()
+    if (sample_count or 0) < 3:
+        return 0.0
+    return float(average or 0.0)
+
+
+async def backfill_aoi_daily_counts(
+    db: AsyncSession,
+) -> int:
+    total_rows = 0
+
+    event_aoi_expr = func.coalesce(SatelliteScene.aoi_id, "default")
+    event_date_expr = func.date(ObjectEvent.created_at)
+    result = await db.execute(
+        select(
+            event_aoi_expr.label("aoi_id"),
+            event_date_expr.label("event_date"),
+            ObjectEvent.type,
+            func.count(ObjectEvent.id),
+        )
+        .outerjoin(SatelliteScene, SatelliteScene.scene_id == ObjectEvent.scene_id)
+        .group_by(
+            event_aoi_expr,
+            event_date_expr,
+            ObjectEvent.type,
+        )
+    )
+    event_rows = result.all()
+    if event_rows:
+        event_values = [
+            {
+                "aoi_id": aoi_id,
+                "date": event_date,
+                "event_type": event_type,
+                "count": count,
+            }
+            for aoi_id, event_date, event_type, count in event_rows
+        ]
+
+        stmt = insert(AoiDailyCount).values(event_values)
+        stmt = stmt.on_conflict_do_update(
+            constraint="uq_aoi_daily_counts_aoi_date_event",
+            set_={
+                "count": stmt.excluded.count,
+                "updated_at": func.now(),
+            },
+        )
+        await db.execute(stmt)
+        total_rows += len(event_values)
+
+    detection_aoi_expr = func.coalesce(SatelliteScene.aoi_id, "default")
+    detection_date_expr = func.date(TileDetection.created_at)
+    detection_result = await db.execute(
+        select(
+            detection_aoi_expr.label("aoi_id"),
+            detection_date_expr.label("event_date"),
+            func.count(TileDetection.id),
+        )
+        .outerjoin(SatelliteScene, SatelliteScene.scene_id == TileDetection.scene_id)
+        .group_by(
+            detection_aoi_expr,
+            detection_date_expr,
+        )
+    )
+    detection_rows = detection_result.all()
+    if detection_rows:
+        detection_values = [
+            {
+                "aoi_id": aoi_id,
+                "date": event_date,
+                "event_type": "detection",
+                "count": count,
+            }
+            for aoi_id, event_date, count in detection_rows
+        ]
+
+        stmt = insert(AoiDailyCount).values(detection_values)
+        stmt = stmt.on_conflict_do_update(
+            constraint="uq_aoi_daily_counts_aoi_date_event",
+            set_={
+                "count": stmt.excluded.count,
+                "updated_at": func.now(),
+            },
+        )
+        await db.execute(stmt)
+        total_rows += len(detection_values)
+
+    await db.flush()
+    return total_rows

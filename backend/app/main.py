@@ -14,8 +14,11 @@ if str(repo_root) not in sys.path:
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import func, select
 
 from app.core.config import get_settings
+from app.database.crud import backfill_aoi_daily_counts
+from app.database.models import AoiDailyCount
 from app.database.session import init_db, async_session
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from pipeline.stac_watcher import run_watcher
@@ -74,6 +77,17 @@ def create_app() -> FastAPI:
     async def on_startup():
         await init_db()
         verify_change_model_assets()
+        try:
+            async with async_session() as session:
+                existing_detection_count = await session.scalar(
+                    select(func.count()).select_from(AoiDailyCount).where(AoiDailyCount.event_type == "detection")
+                )
+                if int(existing_detection_count or 0) == 0:
+                    backfilled = await backfill_aoi_daily_counts(session)
+                    await session.commit()
+                    logger.info("Backfilled %s aoi_daily_count rows", backfilled)
+        except Exception as exc:
+            logger.warning("AOI daily count backfill skipped due to error: %s", exc)
         scheduler = AsyncIOScheduler()
         app.state.scheduler = scheduler
 

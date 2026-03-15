@@ -1,0 +1,49 @@
+airbases:
+  - id: dubai_airport
+    name: Dubai International Airport
+    country: UAE
+    type: civil
+    priority: high
+    bbox: [55.3272, 25.2285, 55.4139, 25.2775]
+
+  - id: al_maktoum
+    name: Al Maktoum International Airport
+    country: UAE
+    type: civil
+    priority: high
+    bbox: [55.1522, 24.8690, 55.2322, 24.9290]
+
+  - id: al_dhafra
+    name: Al Dhafra Air Base
+    country: UAE
+    type: military
+    priority: critical
+    bbox: [54.4760, 24.2280, 54.5760, 24.2880]
+
+  - id: abu_dhabi_airport
+    name: Abu Dhabi International Airport
+    country: UAE
+    type: civil
+    priority: medium
+    bbox: [54.6364, 24.4130, 54.6964, 24.4530]
+
+  - id: sharjah_airport
+    name: Sharjah International Airport
+    country: UAE
+    type: civil
+    priority: medium
+    bbox: [55.5100, 25.3200, 55.5300, 25.3400]
+
+  - id: al_udeid
+    name: Al Udeid Air Base
+    country: Qatar
+    type: military
+    priority: critical
+    bbox: [51.3100, 25.1100, 51.3300, 25.1300]
+
+  - id: bahrain_airport
+    name: Bahrain International Airport
+    country: Bahrain
+    type: civil_military
+    priority: medium
+    bbox: [50.6336, 26.2600, 50.6636, 26.2900]

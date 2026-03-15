@@ -9,3 +9,14 @@ export interface OperationsEvent {
     aoi_name?: string;
 }
 
+export interface AirbaseStatus {
+    id: string;
+    name: string;
+    type: string;
+    priority: string;
+    country: string;
+    today_count?: number | null;
+    baseline?: number | null;
+    anomaly_factor?: number | null;
+    status: "normal" | "elevated" | "anomalous" | string;
+}

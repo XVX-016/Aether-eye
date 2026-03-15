@@ -6,9 +6,11 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import ActivityAlert, ObjectEvent, SatelliteScene, TileDetection
+from pipeline.airbase_aggregator import get_airbase_status
+from app.database.crud import get_aoi_baseline
+from app.database.models import ActivityAlert, AoiDailyCount, ObjectEvent, SatelliteScene, TileDetection
 from app.database.session import get_db
-from app.schemas.operations import CountResponse, OperationsEvent
+from app.schemas.operations import AoiBaselineResponse, AirbaseStatusResponse, CountResponse, OperationsEvent
 
 router = APIRouter(tags=["operations"])
 
@@ -131,3 +133,51 @@ async def get_alerts_count(db: AsyncSession = Depends(get_db)) -> CountResponse:
         select(func.count()).select_from(ActivityAlert).where(ActivityAlert.created_at >= since)
     )
     return CountResponse(count=int(count or 0))
+
+
+@router.get("/aoi-baseline", response_model=AoiBaselineResponse)
+async def get_aoi_baseline_debug(
+    aoi_id: str = Query(..., min_length=1),
+    days: int = Query(default=30, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+) -> AoiBaselineResponse:
+    today = datetime.now(timezone.utc).date()
+    since = today - timedelta(days=days)
+
+    points_result = await db.execute(
+        select(func.count(AoiDailyCount.id))
+        .where(AoiDailyCount.aoi_id == aoi_id)
+        .where(AoiDailyCount.date >= since)
+        .where(AoiDailyCount.date < today)
+    )
+    data_points = int(points_result.scalar() or 0)
+
+    event_types_result = await db.execute(
+        select(AoiDailyCount.event_type)
+        .where(AoiDailyCount.aoi_id == aoi_id)
+        .where(AoiDailyCount.date >= since)
+        .where(AoiDailyCount.date < today)
+        .distinct()
+    )
+    event_types = {row[0] for row in event_types_result.fetchall()}
+    event_types.update({"detection", "ACTIVITY_SURGE", "ELEVATED_ACTIVITY", "NEW_OBJECT"})
+
+    baselines: dict[str, float] = {}
+    for event_type in sorted(event_types):
+        baselines[event_type] = await get_aoi_baseline(db, aoi_id, event_type, lookback_days=days)
+
+    return AoiBaselineResponse(
+        aoi_id=aoi_id,
+        event_type_baselines=baselines,
+        data_points=data_points,
+        lookback_days=days,
+    )
+
+
+@router.get("/airbase-status", response_model=list[AirbaseStatusResponse])
+async def get_airbase_status_endpoint(
+    days: int = Query(default=30, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+) -> list[AirbaseStatusResponse]:
+    rows = await get_airbase_status(db, lookback_days=days)
+    return [AirbaseStatusResponse(**row) for row in rows]

@@ -3,10 +3,14 @@ from __future__ import annotations
 import uuid
 from collections import defaultdict
 from datetime import datetime, timezone
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
-from app.database.crud import get_detection_history_for_cell, save_event
-from app.database.session import async_session
+import yaml
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database.crud import get_aoi_baseline, increment_aoi_daily_count, save_event
 
 
 GRID_SIZE_DEGREES = 0.01
@@ -22,7 +26,39 @@ def _cell_bounds(lat: float, lon: float, grid_size: float = GRID_SIZE_DEGREES) -
     return lat_min, lat_min + grid_size, lon_min, lon_min + grid_size
 
 
-async def generate_events(detections: list[dict[str, Any]], scene_id: str, persist: bool = True) -> list[dict[str, Any]]:
+def _cell_center(cluster: list[dict[str, Any]]) -> tuple[float, float]:
+    count = len(cluster)
+    mean_lat = sum(float(item["lat"]) for item in cluster) / count
+    mean_lon = sum(float(item["lon"]) for item in cluster) / count
+    return mean_lat, mean_lon
+
+
+@lru_cache(maxsize=1)
+def _load_aoi_bboxes() -> list[dict[str, Any]]:
+    config_path = Path(__file__).resolve().parents[1] / "configs" / "ingestion" / "stac.yaml"
+    if not config_path.exists():
+        return []
+    with config_path.open("r", encoding="utf-8") as handle:
+        cfg = yaml.safe_load(handle) or {}
+    return list(cfg.get("aoi_list", []))
+
+
+def _resolve_aoi_id(lat: float, lon: float) -> str:
+    for aoi in _load_aoi_bboxes():
+        bbox = aoi.get("bbox")
+        if not bbox or len(bbox) != 4:
+            continue
+        min_lon, min_lat, max_lon, max_lat = bbox
+        if min_lon <= lon <= max_lon and min_lat <= lat <= max_lat:
+            return str(aoi.get("id") or "default")
+    return "default"
+
+
+async def generate_events(
+    detections: list[dict[str, Any]],
+    scene_id: str,
+    db: AsyncSession,
+) -> list[dict[str, Any]]:
     clusters: dict[tuple[int, int], list[dict[str, Any]]] = defaultdict(list)
     for det in detections:
         change_score = float(det.get("change_score") or 0.0)
@@ -36,63 +72,72 @@ async def generate_events(detections: list[dict[str, Any]], scene_id: str, persi
         clusters[key].append(det)
 
     now = datetime.now(timezone.utc)
+    today = now.date()
     events: list[dict[str, Any]] = []
+    detection_increments: dict[str, int] = defaultdict(int)
+    event_type_increments: dict[tuple[str, str], int] = defaultdict(int)
 
-    async with async_session() as session:
-        for (_lat_bin, _lon_bin), cluster in clusters.items():
-            current_count = len(cluster)
-            mean_lat = sum(float(d["lat"]) for d in cluster) / current_count
-            mean_lon = sum(float(d["lon"]) for d in cluster) / current_count
-            lat_min, lat_max, lon_min, lon_max = _cell_bounds(mean_lat, mean_lon)
-            history = await get_detection_history_for_cell(
-                session,
-                lat_min=lat_min,
-                lat_max=lat_max,
-                lon_min=lon_min,
-                lon_max=lon_max,
-                days=7,
-            )
-            historical_avg = len(history) / 7.0
-            event_type: str | None = None
-            if historical_avg == 0.0:
-                event_type = "NEW_OBJECT"
-            elif current_count / historical_avg > 3.0:
-                event_type = "ACTIVITY_SURGE"
-            if event_type is None:
-                continue
+    for cluster in clusters.values():
+        current_count = len(cluster)
+        mean_lat, mean_lon = _cell_center(cluster)
+        lat_min, lat_max, lon_min, lon_max = _cell_bounds(mean_lat, mean_lon)
+        aoi_id = _resolve_aoi_id(mean_lat, mean_lon)
+        baseline = await get_aoi_baseline(db, aoi_id, "detection", lookback_days=30)
+        surge_factor = (current_count / baseline) if baseline > 0 else None
 
-            confidence = sum(float(d.get("confidence") or d.get("change_score") or 0.0) for d in cluster) / current_count
-            event = {
-                "event_id": str(uuid.uuid4()),
-                "event_type": event_type,
-                "scene_id": scene_id,
-                "lat": mean_lat,
-                "lon": mean_lon,
-                "confidence": confidence,
-                "priority": "HIGH" if event_type == "ACTIVITY_SURGE" else "MEDIUM",
-                "detection_class": cluster[0].get("detection_class"),
-                "metadata_json": {
-                    "cluster_size": current_count,
-                    "historical_avg": historical_avg,
-                    "surge_factor": (current_count / historical_avg) if historical_avg > 0 else None,
-                    "grid_cell": [lat_min, lon_min, lat_max, lon_max],
-                    "timestamp": now.isoformat(),
-                },
-            }
-            events.append(event)
-            if persist:
-                await save_event(
-                    session,
-                    event_id=event["event_id"],
-                    event_type=event["event_type"],
-                    scene_id=scene_id,
-                    lat=mean_lat,
-                    lon=mean_lon,
-                    confidence=confidence,
-                    priority=event["priority"],
-                    detection_class=event["detection_class"],
-                    metadata_json=event["metadata_json"],
-                )
-        if persist:
-            await session.commit()
+        event_type: str | None = None
+        if baseline == 0 and current_count > 0:
+            event_type = "NEW_OBJECT"
+        elif surge_factor is not None and surge_factor >= 3.0:
+            event_type = "ACTIVITY_SURGE"
+        elif surge_factor is not None and surge_factor >= 1.5:
+            event_type = "ELEVATED_ACTIVITY"
+        else:
+            detection_increments[aoi_id] += current_count
+            continue
+
+        confidence = sum(float(d.get("confidence") or d.get("change_score") or 0.0) for d in cluster) / current_count
+        priority = "HIGH" if event_type == "ACTIVITY_SURGE" else "MEDIUM" if event_type == "ELEVATED_ACTIVITY" else "LOW"
+        event = {
+            "event_id": str(uuid.uuid4()),
+            "event_type": event_type,
+            "scene_id": scene_id,
+            "lat": mean_lat,
+            "lon": mean_lon,
+            "confidence": confidence,
+            "priority": priority,
+            "detection_class": cluster[0].get("detection_class"),
+            "metadata_json": {
+                "cluster_size": current_count,
+                "historical_avg": baseline,
+                "surge_factor": surge_factor,
+                "grid_cell": [lat_min, lon_min, lat_max, lon_max],
+                "timestamp": now.isoformat(),
+                "aoi_id": aoi_id,
+            },
+        }
+        events.append(event)
+        await save_event(
+            db,
+            event_id=event["event_id"],
+            event_type=event["event_type"],
+            scene_id=scene_id,
+            lat=mean_lat,
+            lon=mean_lon,
+            confidence=confidence,
+            priority=priority,
+            detection_class=event["detection_class"],
+            metadata_json=event["metadata_json"],
+        )
+        detection_increments[aoi_id] += current_count
+        event_type_increments[(aoi_id, event_type)] += 1
+
+    for aoi_id, increment in detection_increments.items():
+        if increment > 0:
+            await increment_aoi_daily_count(db, aoi_id, today, "detection", increment)
+
+    for (aoi_id, event_type), increment in event_type_increments.items():
+        await increment_aoi_daily_count(db, aoi_id, today, event_type, increment)
+
+    await db.commit()
     return events
