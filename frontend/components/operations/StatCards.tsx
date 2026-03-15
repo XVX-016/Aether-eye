@@ -10,15 +10,15 @@ type StatCard = {
     loading: boolean;
 };
 
-const STATIC_AOI_COUNT = 1;
 const POLL_INTERVAL_MS = 30_000;
-const API_BASE = "http://localhost:8000/api";
+const API_BASE = "/api";
 
 export function StatCards() {
     const [counts, setCounts] = useState<Record<string, { value: number | null; loading: boolean }>>({
         scenes: { value: null, loading: true },
         detections: { value: null, loading: true },
         alerts: { value: null, loading: true },
+        sites: { value: null, loading: true },
     });
 
     useEffect(() => {
@@ -33,20 +33,31 @@ export function StatCards() {
             return payload.count ?? 0;
         };
 
+        const fetchSiteCount = async () => {
+            const response = await fetch(`${API_BASE}/sites/geojson`, { cache: "no-store" });
+            if (!response.ok) {
+                throw new Error("Failed to fetch /sites/geojson");
+            }
+            const payload = (await response.json()) as { features?: unknown[] };
+            return Array.isArray(payload.features) ? payload.features.length : 0;
+        };
+
         const load = async () => {
             if (alive) {
                 setCounts((current) => ({
                     scenes: { value: current.scenes.value, loading: true },
                     detections: { value: current.detections.value, loading: true },
                     alerts: { value: current.alerts.value, loading: true },
+                    sites: { value: current.sites.value, loading: true },
                 }));
             }
 
             try {
-                const [scenes, detections, alerts] = await Promise.all([
+                const [scenes, detections, alerts, sites] = await Promise.all([
                     fetchCount("/scenes/count"),
                     fetchCount("/detections/count"),
                     fetchCount("/alerts/count"),
+                    fetchSiteCount(),
                 ]);
                 if (!alive) {
                     return;
@@ -55,6 +66,7 @@ export function StatCards() {
                     scenes: { value: scenes, loading: false },
                     detections: { value: detections, loading: false },
                     alerts: { value: alerts, loading: false },
+                    sites: { value: sites, loading: false },
                 });
             } catch {
                 if (!alive) {
@@ -64,6 +76,7 @@ export function StatCards() {
                     scenes: { value: null, loading: false },
                     detections: { value: null, loading: false },
                     alerts: { value: null, loading: false },
+                    sites: { value: null, loading: false },
                 });
             }
         };
@@ -101,10 +114,10 @@ export function StatCards() {
             },
             {
                 key: "aois",
-                label: "AOIs Monitored",
+                label: "Sites Monitored",
                 accent: "var(--ops-accent-aois)",
-                value: STATIC_AOI_COUNT.toLocaleString(),
-                loading: false,
+                value: counts.sites.value != null ? counts.sites.value.toLocaleString() : "--",
+                loading: counts.sites.loading,
             },
         ],
         [counts],

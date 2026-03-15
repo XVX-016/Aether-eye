@@ -100,7 +100,7 @@ export function SiteDetailPanel({ site, onClose }: Props) {
                     <div className="ops-kicker mono">Site Detail</div>
                     <h2 className="ops-panel-title" style={{ marginBottom: "0.45rem" }}>{site.name}</h2>
                     <div className="mono" style={{ color: "#4B5563", fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                        {formatLabel(site.type)}  ·  {formatLabel(site.priority)}  ·  {site.country}
+                        {formatLabel(site.type)}  Â·  {formatLabel(site.priority)}  Â·  {site.country}
                     </div>
                 </div>
                 <button type="button" className="ops-filter-btn" onClick={onClose}>Close</button>

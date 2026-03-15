@@ -101,15 +101,32 @@ async def discover_scenes_for_all_sites(
     for site in sites:
         try:
             bbox = [float(x) for x in site["bbox"]]
-            scenes = await search_stac(
-                client=client,
-                stac_url=stac_url,
-                bbox=bbox,
-                lookback_days=lookback_days,
-                cloud_cover_max=cloud_cover_max,
-                collection=collection,
-                max_items=max_items,
-            )
+            scenes: list[dict[str, Any]] = []
+            for attempt in range(2):
+                try:
+                    scenes = await search_stac(
+                        client=client,
+                        stac_url=stac_url,
+                        bbox=bbox,
+                        lookback_days=lookback_days,
+                        cloud_cover_max=cloud_cover_max,
+                        collection=collection,
+                        max_items=max_items,
+                    )
+                    break
+                except httpx.HTTPStatusError as exc:
+                    if exc.response.status_code == 429 and attempt == 0:
+                        logger.warning("STAC 429 for %s, retrying in 30s", site["id"])
+                        await asyncio.sleep(30)
+                        continue
+                    logger.warning("STAC search failed for %s: %s", site["id"], exc)
+                    scenes = []
+                    break
+                except Exception as exc:
+                    logger.warning("STAC search failed for %s: %s", site["id"], exc)
+                    scenes = []
+                    break
+
             for scene in scenes:
                 scene_id = str(scene.get("id") or "")
                 if not scene_id or scene_id in seen_scene_ids:
@@ -121,7 +138,7 @@ async def discover_scenes_for_all_sites(
                 seen_scene_ids.add(scene_id)
 
             logger.info("STAC site %s: %d scenes", site["id"], len(scenes))
-            await asyncio.sleep(2)
+            await asyncio.sleep(3)
         except Exception as exc:
             logger.warning("STAC search failed for %s: %s", site["id"], exc)
             continue

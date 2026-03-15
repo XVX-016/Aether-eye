@@ -1,4 +1,4 @@
-version: "3.9"
+version: '3.9'
 
 services:
   db:
@@ -8,54 +8,45 @@ services:
       POSTGRES_DB: aether_eye
       POSTGRES_USER: aether
       POSTGRES_PASSWORD: aether
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-    volumes:
-      - aether-postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U aether -d aether_eye"]
       interval: 10s
       timeout: 5s
-      retries: 10
-    restart: unless-stopped
+      retries: 5
 
-  api:
+  backend:
     build:
       context: .
-      dockerfile: ./backend/Dockerfile
-    container_name: aether-api
-    env_file:
-      - ./backend/.env
+      dockerfile: Dockerfile.backend
+    container_name: aether-backend
     environment:
       DATABASE_URL: postgresql+asyncpg://aether:aether@db:5432/aether_eye
+      PYTHONPATH: /app
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
-      ml_core-sync:
-        condition: service_completed_successfully
+    volumes:
+      - ./ml_core/artifacts:/app/ml_core/artifacts:ro
     restart: unless-stopped
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: Dockerfile.frontend
     container_name: aether-frontend
+    environment:
+      BACKEND_API_BASE_URL: http://backend:8000/api
     ports:
-      - "3000:80"
+      - "3000:3000"
     depends_on:
-      - api
+      - backend
     restart: unless-stopped
 
-  ml_core-sync:
-    image: alpine:3.19
-    command: ["sh", "-c", "mkdir -p /opt && sleep 1"]
-    restart: "no"
-
-networks:
-  default:
-    name: aether-network
-
 volumes:
-  aether-postgres:
+  postgres_data:

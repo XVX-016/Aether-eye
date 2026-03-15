@@ -13,6 +13,7 @@ if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
 
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, select
 
@@ -73,6 +74,18 @@ def create_app() -> FastAPI:
         docs_url="/docs",
         redoc_url="/redoc",
     )
+
+    @app.get("/health")
+    async def health() -> dict[str, str]:
+        return {"status": "ok", "version": "0.6.0"}
+
+    @app.get("/health/models")
+    async def health_models():
+        try:
+            verify_change_model_assets()
+            return {"status": "ok", "change_model": "v2"}
+        except RuntimeError as exc:
+            return JSONResponse(status_code=503, content={"status": "error", "detail": str(exc)})
 
     @app.on_event("startup")
     async def on_startup():

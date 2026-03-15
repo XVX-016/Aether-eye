@@ -22,14 +22,16 @@ logger = logging.getLogger(__name__)
 
 
 RSS_SOURCES = [
-    {"url": "https://feeds.reuters.com/reuters/worldNews", "source": "Reuters", "tier": 1},
     {"url": "https://feeds.bbci.co.uk/news/world/rss.xml", "source": "BBC News", "tier": 1},
+    {"url": "https://feeds.skynews.com/feeds/rss/world.xml", "source": "Sky News", "tier": 1},
     {"url": "https://breakingdefense.com/feed", "source": "Breaking Defense", "tier": 2},
-    {"url": "https://www.defensenews.com/arc/outboundfeeds/rss/", "source": "Defense News", "tier": 2},
     {"url": "https://www.aljazeera.com/xml/rss/all.xml", "source": "Al Jazeera", "tier": 2},
     {"url": "https://www.arabnews.com/rss.xml", "source": "Arab News", "tier": 2},
-    {"url": "https://www.thenationalnews.com/rss", "source": "The National", "tier": 2},
-    {"url": "https://rss.app/feeds/tvYWGGqHBSGMYBKN.xml", "source": "War Zone", "tier": 3},
+    {"url": "https://www.thenationalnews.com/rss", "source": "The National UAE", "tier": 2},
+    {"url": "https://taskandpurpose.com/feed", "source": "Task and Purpose", "tier": 3},
+    {"url": "https://theaviationist.com/feed", "source": "The Aviationist", "tier": 3},
+    {"url": "https://www.navalnews.com/feed", "source": "Naval News", "tier": 3},
+    {"url": "https://www.middleeasteye.net/rss", "source": "Middle East Eye", "tier": 2},
 ]
 
 ALIASES: dict[str, list[str]] = {
@@ -112,6 +114,13 @@ async def fetch_and_store_articles(db: AsyncSession) -> int:
     total = 0
 
     async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+        try:
+            healthcheck = await client.get("https://feeds.bbci.co.uk/news/world/rss.xml")
+            healthcheck.raise_for_status()
+        except Exception:
+            logger.warning("Intel feed: network unreachable, skipping fetch")
+            return 0
+
         for source in RSS_SOURCES:
             try:
                 response = await client.get(source["url"])

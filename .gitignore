@@ -32,7 +32,9 @@ Thumbs.db
 .idea/
 
 .env
+.env.local
 .env.*
+!.env.example
 
 *.log
 debug_train_output.txt
