@@ -1,5 +1,5 @@
-model_path: "C:/Computing/Aether-eye/experiments/aircraft/run_04_convnext_small/best.pt"
-onnx_path: "C:/Computing/Aether-eye/experiments/aircraft/run_04_convnext_small/aircraft_convnext_small.onnx"
+model_path: "ml_core/artifacts/aircraft_classifier_v1/aircraft_classifier_v1.pt"
+onnx_path: "ml_core/artifacts/aircraft_classifier_v1/aircraft_classifier_v1.onnx"
 architecture: "convnext_small"
 num_classes: 100
 image_size: 224

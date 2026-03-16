@@ -66,6 +66,27 @@ def verify_change_model_assets() -> None:
     logger.info("Change model v2 verified: checkpoint=%s onnx=%s", checkpoint_path, onnx_file)
 
 
+def verify_aircraft_classifier() -> None:
+    classifier_cfg = repo_root / "backend" / "configs" / "inference" / "aircraft_classifier.yaml"
+    if not classifier_cfg.exists():
+        raise RuntimeError(f"Aircraft classifier config missing: {classifier_cfg}")
+
+    with classifier_cfg.open("r", encoding="utf-8") as handle:
+        classifier_data = yaml.safe_load(handle) or {}
+
+    onnx_path = classifier_data.get("onnx_path")
+    if not onnx_path:
+        raise RuntimeError(f"{classifier_cfg} missing onnx_path")
+
+    onnx_file = Path(onnx_path)
+    if not onnx_file.is_absolute():
+        onnx_file = (repo_root / onnx_file).resolve()
+    if not onnx_file.exists():
+        raise RuntimeError(f"Aircraft classifier ONNX missing: {onnx_file}")
+
+    logger.info("Aircraft classifier v1 verified: convnext_small 100 classes")
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
@@ -83,7 +104,8 @@ def create_app() -> FastAPI:
     async def health_models():
         try:
             verify_change_model_assets()
-            return {"status": "ok", "change_model": "v2"}
+            verify_aircraft_classifier()
+            return {"status": "ok", "change_model": "v2", "aircraft_classifier": "v1"}
         except RuntimeError as exc:
             return JSONResponse(status_code=503, content={"status": "error", "detail": str(exc)})
 
@@ -91,6 +113,10 @@ def create_app() -> FastAPI:
     async def on_startup():
         await init_db()
         verify_change_model_assets()
+        try:
+            verify_aircraft_classifier()
+        except Exception as exc:
+            logger.warning("Aircraft classifier verification skipped due to error: %s", exc)
         try:
             async with async_session() as session:
                 existing_detection_count = await session.scalar(

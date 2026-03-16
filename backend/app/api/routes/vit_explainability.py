@@ -9,12 +9,12 @@ import numpy as np
 from fastapi import APIRouter, File, UploadFile, HTTPException, Query
 from PIL import Image
 
-from app.schemas.vit_explainability import ViTClassificationResponse, ViTGradCamResponse
+from app.schemas.vit_explainability import AircraftClassificationResponse, AircraftGradCamResponse
 from app.services.geopolitics import classify_friend_foe
-from app.services.vit_service import get_vit_aircraft_pipeline
+from app.services.vit_service import get_aircraft_classifier
 
 
-router = APIRouter(prefix="/v1", tags=["vit-explainability"])
+router = APIRouter(prefix="/v1", tags=["aircraft-classification"])
 
 
 def _read_image_bgr(file: UploadFile) -> np.ndarray:
@@ -44,14 +44,14 @@ def _heatmap_to_base64_png(heatmap01: np.ndarray, out_w: int, out_h: int) -> str
 
 @router.post(
     "/aircraft-classify",
-    response_model=ViTClassificationResponse,
+    response_model=AircraftClassificationResponse,
     summary="Classify aircraft variant (ViT fine-tuned on FGVC Aircraft).",
 )
 async def aircraft_classify(
     image: UploadFile = File(..., description="Input image file (jpeg/png/etc)."),
     country: str = Query(default="USA", description="User-selected country for geopolitical friend/foe context."),
-) -> ViTClassificationResponse:
-    pipeline = get_vit_aircraft_pipeline()
+) -> AircraftClassificationResponse:
+    pipeline = get_aircraft_classifier()
     img_bgr = _read_image_bgr(image)
 
     start = perf_counter()
@@ -60,7 +60,7 @@ async def aircraft_classify(
 
     friend_or_foe = classify_friend_foe(country, res.origin_country)
 
-    return ViTClassificationResponse(
+    return AircraftClassificationResponse(
         class_id=res.class_id,
         class_name=res.class_name,
         confidence=res.confidence,
@@ -74,7 +74,7 @@ async def aircraft_classify(
 
 @router.post(
     "/aircraft-gradcam",
-    response_model=ViTGradCamResponse,
+    response_model=AircraftGradCamResponse,
     summary="Generate Grad-CAM heatmap for ViT aircraft classification.",
 )
 async def aircraft_gradcam(
@@ -84,8 +84,8 @@ async def aircraft_gradcam(
         description="Optional class id to explain. If omitted, explains the top-1 prediction.",
         ge=0,
     ),
-) -> ViTGradCamResponse:
-    pipeline = get_vit_aircraft_pipeline()
+) -> AircraftGradCamResponse:
+    pipeline = get_aircraft_classifier()
     img_bgr = _read_image_bgr(image)
     h, w = img_bgr.shape[:2]
 
@@ -98,7 +98,7 @@ async def aircraft_gradcam(
 
     heatmap_b64 = _heatmap_to_base64_png(heatmap, out_w=w, out_h=h)
 
-    return ViTGradCamResponse(
+    return AircraftGradCamResponse(
         class_id=cls.class_id,
         class_name=cls.class_name,
         confidence=cls.confidence,

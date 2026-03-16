@@ -1,72 +1,121 @@
 {
-  "api/detect": {
-    "description": "YOLOv8 aircraft detection endpoint.",
-    "request": {
-      "image_path": "string"
+  "version": "1.0.0",
+  "generated": "2026-03-16",
+  "endpoints": {
+    "/v1/aircraft-classify": {
+      "method": "POST",
+      "description": "Classify aircraft type from image using ConvNeXt Small trained on 100 aircraft classes",
+      "input": {
+        "image": "multipart/form-data file upload (JPEG/PNG)",
+        "country": "query string, optional, default USA. Used for friend/foe context."
+      },
+      "output": {
+        "class_id": "integer, 0-99",
+        "class_name": "string, e.g. F-16A/B",
+        "confidence": "float 0.0-1.0",
+        "origin_country": "string, e.g. USA",
+        "friend_or_foe": "string: FRIEND | FOE | NEUTRAL",
+        "inference_time_ms": "float",
+        "model_name": "string, convnext_small",
+        "device_used": "string, cuda or cpu"
+      },
+      "example_output": {
+        "class_id": 73,
+        "class_name": "F-16A/B",
+        "confidence": 0.87,
+        "origin_country": "USA",
+        "friend_or_foe": "FRIEND",
+        "inference_time_ms": 42.3,
+        "model_name": "convnext_small",
+        "device_used": "cuda"
+      }
     },
-    "response": {
-      "detections": [
-        {
-          "class": "aircraft",
-          "confidence": 0.92,
-          "bbox": [120, 88, 240, 210],
-          "lat": 25.1983,
-          "lon": 55.2796
-        }
-      ]
-    }
-  },
-  "api/classify": {
-    "description": "ViT fine-grained classification endpoint.",
-    "request": {
-      "image_path": "string",
-      "bbox": [120, 88, 240, 210]
+    "/v1/aircraft-gradcam": {
+      "method": "POST",
+      "description": "Generate Grad-CAM explainability heatmap for aircraft classification",
+      "input": {
+        "image": "multipart/form-data file upload",
+        "target_class": "query integer optional, defaults to top-1 prediction"
+      },
+      "output": {
+        "class_id": "integer",
+        "class_name": "string",
+        "confidence": "float",
+        "origin_country": "string",
+        "heatmap_base64_png": "base64 encoded grayscale PNG heatmap",
+        "inference_time_ms": "float",
+        "model_name": "string",
+        "device_used": "string"
+      }
     },
-    "response": {
-      "class": "F-16",
-      "confidence": 0.95,
-      "metadata": {
-        "engine_type": "jet",
-        "wing_type": "swept"
+    "/v1/aircraft-detection": {
+      "method": "POST",
+      "description": "Detect aircraft bounding boxes in image using YOLO detector",
+      "status": "beta - detector artifact packaging pending",
+      "input": {
+        "image": "multipart/form-data file upload"
+      },
+      "output": {
+        "detections": "array of detection objects",
+        "inference_time_ms": "float",
+        "model_name": "string",
+        "device_used": "string"
+      }
+    },
+    "/v1/change-detection": {
+      "method": "POST",
+      "description": "Detect changes between two aligned satellite images using SiameseUNet",
+      "input": {
+        "before_image": "multipart/form-data file upload",
+        "after_image": "multipart/form-data file upload",
+        "include_mask": "query bool, default false",
+        "semantic": "query bool, default false"
+      },
+      "output": {
+        "change_score": "float 0.0-1.0",
+        "changed_pixels": "integer",
+        "regions": "array of change regions with bbox",
+        "change_mask_base64": "base64 PNG if include_mask=true",
+        "overlay_base64": "base64 PNG overlay",
+        "inference_time_ms": "float",
+        "model_name": "string",
+        "device_used": "string"
+      }
+    },
+    "/api/events": {
+      "method": "GET",
+      "description": "Retrieve intelligence events from the operations pipeline",
+      "params": {
+        "hours": "integer, default 24",
+        "limit": "integer, default 100",
+        "start": "ISO datetime string optional",
+        "end": "ISO datetime string optional"
+      },
+      "output_item": {
+        "event_id": "string",
+        "event_type": "string: ACTIVITY_SURGE | NEW_OBJECT | ELEVATED_ACTIVITY",
+        "lat": "float",
+        "lon": "float",
+        "confidence": "float",
+        "priority": "string: HIGH | MEDIUM | LOW",
+        "timestamp": "ISO datetime string",
+        "aoi_name": "string optional"
       }
     }
   },
-  "api/change-detect": {
-    "description": "Siamese U-Net change detection endpoint.",
-    "request": {
-      "image_path_before": "string",
-      "image_path_after": "string"
+  "models": {
+    "aircraft_classifier_v1": {
+      "architecture": "ConvNeXt Small",
+      "num_classes": 100,
+      "val_top1": 0.7252,
+      "val_macro_f1": 0.7199,
+      "artifact": "ml_core/artifacts/aircraft_classifier_v1/aircraft_classifier_v1.onnx"
     },
-    "response": {
-      "changes": [
-        {
-          "bbox": [300, 300, 400, 400],
-          "confidence": 0.88,
-          "lat": 25.2048,
-          "lon": 55.2708
-        }
-      ]
-    }
-  },
-  "api/events": {
-    "description": "Intelligence event engine endpoint.",
-    "request": {
-      "detections": "list",
-      "changes": "list",
-      "history": "list"
-    },
-    "response": {
-      "events": [
-        {
-          "event_id": "evt_102",
-          "type": "aircraft_arrival",
-          "lat": 25.2048,
-          "lon": 55.2708,
-          "confidence": 0.93,
-          "aircraft_class": "F-16",
-          "timestamp": "2026-03-07T12:00:00Z"
-        }
-      ]
+    "change_detector_v2": {
+      "architecture": "SiameseUNet",
+      "val_iou": 0.7936,
+      "test_iou": 0.8243,
+      "artifact": "ml_core/artifacts/change_model_v2/change_model_v2.onnx"
     }
   }
 }

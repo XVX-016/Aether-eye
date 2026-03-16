@@ -91,7 +91,7 @@ def get_aircraft_classifier_config() -> AircraftClassifierConfig:
 
 
 @lru_cache
-def get_vit_aircraft_pipeline():
+def get_aircraft_classifier():
     if torch is None:
         raise RuntimeError("torch is not installed.")
     from aether_ml import ViTAircraftClassifierPipeline
@@ -104,6 +104,9 @@ def get_vit_aircraft_pipeline():
         image_size=cfg.image_size,
         device=None,
     )
+
+
+get_vit_aircraft_pipeline = get_aircraft_classifier
 
 
 @lru_cache
@@ -150,7 +153,7 @@ def classify_aircraft_onnx(image_bgr: np.ndarray):
 
     cfg = get_aircraft_classifier_config()
     session = get_aircraft_classifier_onnx_session()
-    torch_pipeline = get_vit_aircraft_pipeline()
+    torch_pipeline = get_aircraft_classifier()
 
     inp = _preprocess_imagenet_rgb(image_bgr, cfg.image_size)
     input_name = session.get_inputs()[0].name

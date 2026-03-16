@@ -35,3 +35,7 @@ class ViTGradCamResponse(BaseModel):
         default=None, description="Device label used for inference (e.g. cpu, cuda)."
     )
 
+
+AircraftClassificationResponse = ViTClassificationResponse
+AircraftGradCamResponse = ViTGradCamResponse
+
