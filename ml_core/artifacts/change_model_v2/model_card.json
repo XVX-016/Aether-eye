@@ -1,0 +1,14 @@
+{
+  "model": "SiameseUNet",
+  "version": "v2",
+  "checkpoint": "ml_core/artifacts/change_model_v2/change_model_v2.pt",
+  "dataset": "Building-change (WHU-style)",
+  "train_samples": 1134,
+  "val_samples": 126,
+  "test_samples": 690,
+  "loss": "hybrid_tversky",
+  "best_val_iou": 0.7936,
+  "epoch": 47,
+  "use_resize_crop": false,
+  "status": "production"
+}
