@@ -1,120 +1,203 @@
-## Aether Eye Monorepo
+# AETHER-EYE
+### Satellite Intelligence Platform
 
-Production-ready monorepo for aircraft intelligence and satellite change detection.
+Automated satellite imagery analysis and open-source intelligence correlation for critical infrastructure monitoring.
 
-### Structure
+---
 
-- **backend**: FastAPI APIs and inference services.
-- **ml_core**: PyTorch/ONNX model pipelines and training/export scripts.
-- **frontend**: Next.js UI (home + operations dashboard components).
-- **ml_inference**: Placeholder for unified inference runners (current pipelines live in backend + ml_core).
+## Overview
 
-### Local Start Commands (Windows)
+Aether-Eye is a self-hosted intelligence platform that continuously monitors critical global sites using Sentinel-2 satellite imagery, machine learning change detection, and correlated open-source intelligence feeds. It provides operators with an integrated operations dashboard showing activity anomalies, site status, and relevant intelligence signals across all monitored locations.
 
-Shortcut scripts (run from repo root):
+The system operates entirely on-premises. No data leaves the deployment environment. All satellite imagery is sourced from the ESA Copernicus program - a free, open, government-operated data source with global coverage and a 5-day revisit cycle.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\start-backend.ps1
-powershell -ExecutionPolicy Bypass -File .\scripts\start-frontend.ps1
+---
+
+## Capabilities
+
+| Capability | Detail |
+|---|---|
+| Satellite ingestion | Automated Sentinel-2 L2A scene discovery via Copernicus STAC |
+| Change detection | SiameseUNet ML model, test IoU 0.82 on building change dataset |
+| Activity baselines | Per-site temporal baselines with anomaly scoring |
+| Intelligence feed | 10 RSS sources, geo-tagged to monitored sites |
+| ADS-B integration | Live aircraft positions via OpenSky Network |
+| Operations dashboard | Global map, site detail, event feed, intel correlation |
+| Alert levels | NORMAL / ELEVATED (1.5x baseline) / ANOMALOUS (2x baseline) |
+
+---
+
+## Monitored Sites
+
+18 sites across four categories:
+
+**Military Airbases**
+| Site | Country | Priority |
+|---|---|---|
+| Al Dhafra Air Base | UAE | Critical |
+| Al Udeid Air Base | Qatar | Critical |
+| Diego Garcia | BIOT | Critical |
+| Kadena Air Base | Japan | Critical |
+| Andersen AFB | Guam | Critical |
+| Ramstein Air Base | Germany | High |
+| Incirlik Air Base | Turkey | High |
+| Al-Asad Air Base | Iraq | High |
+| Bagram Air Base | Afghanistan | Medium |
+
+**Naval Bases**
+| Site | Country | Priority |
+|---|---|---|
+| Naval Station Norfolk | USA | High |
+| Naval Station Rota | Spain | High |
+| Pearl Harbor Naval Base | USA | High |
+| Changi Naval Base | Singapore | High |
+
+**Strategic Ports**
+| Site | Country | Priority |
+|---|---|---|
+| Bandar Abbas Port | Iran | Critical |
+| Port of Aden | Yemen | High |
+| Jeddah Islamic Port | Saudi Arabia | Medium |
+
+**Civil Airports**
+| Site | Country | Priority |
+|---|---|---|
+| Dubai International Airport | UAE | High |
+| Abu Dhabi International | UAE | Medium |
+
+---
+
+## Architecture
+
+```text
+Sentinel-2 STAC (Copernicus)
+         |
+         v
+   STAC Watcher --> Scene Processor --> Change Detection Model
+   (APScheduler)         |                  (SiameseUNet ONNX)
+                         |
+                         v
+                   Tile Detections
+                         |
+                         v
+              Event Engine --> Activity Alerts
+              (temporal         (NEW_OBJECT /
+               baselines)        ELEVATED /
+                                 ACTIVITY_SURGE)
+                         |
+                         v
+                     PostGIS DB
+                         |
+              +----------+----------+
+              v                     v
+         FastAPI                Intel Feed
+         REST API            (RSS ingestion,
+              |                geo-tagging)
+              v
+      Next.js Dashboard
+      (Operations Map,
+       Site Detail,
+       Intel Correlation)
 ```
 
-If you are already inside `backend`:
+---
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\start-backend.ps1
+## Quick Start
+
+**Prerequisites:** Docker, Docker Compose
+
+```bash
+git clone https://github.com/XVX-016/Aether-eye.git
+cd Aether-eye
+cp .env.example .env
+docker compose up -d
 ```
 
-Backend (FastAPI):
+Dashboard: http://localhost:3000  
+API docs: http://localhost:8000/docs
 
+**Demo mode** (populates dashboard with realistic data):
 ```powershell
-cd C:\Computing\Aether-eye\backend
-$env:PYTHONPATH="C:\Computing\Aether-eye\ml_core"
-$env:BACKEND_PYTHON_EXECUTABLE="C:\mlenv\Scripts\python.exe"
-& "C:\mlenv\Scripts\python.exe" -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+# Windows
+.\scripts\demo_start.ps1
 ```
 
-Frontend (Next.js):
+---
 
-```powershell
-cd C:\Computing\Aether-eye\frontend
-npm install
-npm run dev
+## Tech Stack
+
+| Component | Technology |
+|---|---|
+| Backend API | FastAPI, Python 3.10 |
+| ML inference | PyTorch, ONNX Runtime |
+| Change detection | SiameseUNet (custom trained) |
+| Database | PostgreSQL 16 + PostGIS 3.4 |
+| ORM | SQLAlchemy 2.0 async |
+| Frontend | Next.js 14, TypeScript |
+| Map | MapLibre GL |
+| Satellite data | Sentinel-2 L2A via Copernicus STAC |
+| Scheduling | APScheduler |
+| Containerization | Docker, Docker Compose |
+
+---
+
+## Data Sources
+
+| Source | Type | License |
+|---|---|---|
+| ESA Copernicus Sentinel-2 | Satellite imagery | Free, open government data |
+| OpenSky Network | ADS-B aircraft positions | Free for non-commercial |
+| BBC News, Sky News | RSS intelligence | Public |
+| Breaking Defense | RSS intelligence | Public |
+| Al Jazeera, Arab News | RSS intelligence | Public |
+| The Aviationist, Naval News | RSS intelligence | Public |
+
+---
+
+## Model Performance
+
+| Model | Architecture | Dataset | Val IoU | Test IoU |
+|---|---|---|---|---|
+| Change Detection | SiameseUNet | Building-change (1,134 pairs) | 0.7936 | 0.8243 |
+
+---
+
+## Deployment
+
+The system is fully self-hosted and supports air-gapped deployment with pre-downloaded satellite imagery. No cloud dependencies are required for core detection and monitoring functionality.
+
+Minimum recommended specification:
+- 4 CPU cores
+- 8GB RAM (16GB recommended for ML inference)
+- 50GB storage
+- Ubuntu 22.04 LTS
+
+---
+
+## Project Structure
+
+```text
+Aether-eye/
+|-- backend/
+|   |-- app/          # FastAPI application, routes, schemas
+|   |-- pipeline/     # Scene processing, change detection, event engine
+|   |-- services/     # Intel feed, ADS-B
+|   |-- configs/      # Site registry, STAC config, model config
+|   `-- alembic/      # Database migrations
+|-- frontend/
+|   |-- app/          # Next.js App Router pages
+|   `-- components/   # Dashboard components
+|-- ml_core/
+|   |-- aether_ml/    # Training code, model definitions
+|   `-- artifacts/    # Trained model checkpoints
+|-- scripts/          # Seed data, demo launcher, healthcheck
+`-- docker-compose.yml
 ```
 
-Production frontend run:
+---
 
-```powershell
-cd C:\Computing\Aether-eye\frontend
-npm run build
-npm run start
-```
+## License
 
-### Notes
+Proprietary. All rights reserved.
 
-- If backend import fails for `aether_ml`, verify `PYTHONPATH` points to `C:\Computing\Aether-eye\ml_core`.
-- Backend startup scripts auto-detect Python at `C:\mlenv\Scripts\python.exe` or `C:\mlenv\venv\Scripts\python.exe`.
-- Frontend now uses a built-in Next.js `/api/*` proxy to backend, so you no longer need to set `NEXT_PUBLIC_API_BASE_URL` for local runs.
-- Intelligence processing is now wired to actual ONNX change detection + YOLO aircraft detection/classification. Use the `/api/intelligence/process` endpoint with image paths on disk and optional `geo_bounds` for lat/lon mapping.
-
-### Stanford VisionBasedAircraftDAA Integration
-
-Generate 500 synthetic samples from Stanford generator (copies output into `data/raw/stanford_aircraft/...`):
-
-```powershell
-cd C:\Computing\Aether-eye
-& "C:\mlenv\venv\Scripts\python.exe" .\scripts\generate_stanford_aircraft_data.py `
-  --dataset-name stanford_military_500 `
-  --craft "King Air C90" `
-  --train 450 `
-  --valid 50 `
-  --location "Palo Alto"
-```
-
-Convert Stanford output to YOLOv8 format (`images/`, `labels/`, `data.yaml`):
-
-```powershell
-cd C:\Computing\Aether-eye
-& "C:\mlenv\venv\Scripts\python.exe" .\scripts\convert_stanford_to_yolov8.py `
-  --input-dir .\data\raw\stanford_aircraft\stanford_military_500 `
-  --output-dir .\data\processed\stanford_yolo
-```
-
-Prepare ImageFolder classification dataset from Stanford metadata:
-
-```powershell
-cd C:\Computing\Aether-eye
-& "C:\mlenv\venv\Scripts\python.exe" .\scripts\prepare_stanford_classification_dataset.py `
-  --input-dir .\data\raw\stanford_aircraft\stanford_military_500 `
-  --output-dir .\data\processed\stanford_aircraft_cls
-```
-
-Train ViT on generated classification data:
-
-```powershell
-cd C:\Computing\Aether-eye
-& "C:\mlenv\venv\Scripts\python.exe" .\scripts\train_vit_stanford.py `
-  --data-root .\data\processed\stanford_aircraft_cls `
-  --output-dir .\experiments\aircraft\stanford_vit `
-  --model vit_small_patch16_224 `
-  --epochs 20 `
-  --batch-size 16
-```
-
-Download SpaceNet-7 and DOTA using KaggleHub into change-detection dataset root:
-
-```powershell
-cd C:\Computing\Aether-eye
-& "C:\mlenv\venv\Scripts\python.exe" .\scripts\download_kaggle_satellite_datasets.py `
-  --target-root .\ml_core\DATASET\Satellite-Change
-```
-
-Add extra Kaggle datasets (format `name=kaggle_id`):
-
-```powershell
-& "C:\mlenv\venv\Scripts\python.exe" .\scripts\download_kaggle_satellite_datasets.py `
-  --target-root .\ml_core\DATASET\Satellite-Change `
-  --dataset levir=levirmcd/your-kaggle-id-here
-```
-
-Note:
-- VisionBasedAircraftDAA generator supports aircraft configured in its `constants.py` (`Cessna Skyhawk`, `Boeing 737-800`, `King Air C90`) unless that repo is extended with additional aircraft definitions.
+---
