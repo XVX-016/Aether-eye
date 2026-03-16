@@ -98,14 +98,14 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     async def health() -> dict[str, str]:
-        return {"status": "ok", "version": "0.6.0"}
+        return {"status": "ok", "version": "1.1.0"}
 
     @app.get("/health/models")
     async def health_models():
         try:
             verify_change_model_assets()
             verify_aircraft_classifier()
-            return {"status": "ok", "change_model": "v2", "aircraft_classifier": "v1"}
+            return {"status": "ok", "change_model": "v2", "aircraft_classifier": "convnext_small_100cls"}
         except RuntimeError as exc:
             return JSONResponse(status_code=503, content={"status": "error", "detail": str(exc)})
 
