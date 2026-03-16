@@ -20,7 +20,7 @@ The system operates entirely on-premises. No data leaves the deployment environm
 | Satellite ingestion | Automated Sentinel-2 L2A scene discovery via Copernicus STAC |
 | Change detection | SiameseUNet ML model, test IoU 0.82 on building change dataset |
 | Activity baselines | Per-site temporal baselines with anomaly scoring |
-| Intelligence feed | 10 RSS sources, geo-tagged to monitored sites |
+| Intelligence feed | 10 RSS sources geo-tagged to monitored sites |
 | ADS-B integration | Live aircraft positions via OpenSky Network |
 | Operations dashboard | Global map, site detail, event feed, intel correlation |
 | Alert levels | NORMAL / ELEVATED (1.5x baseline) / ANOMALOUS (2x baseline) |
@@ -104,20 +104,21 @@ Sentinel-2 STAC (Copernicus)
 
 ## Quick Start
 
-**Prerequisites:** Docker, Docker Compose
+Prerequisites: Docker, Docker Compose
 
-```bash
+```text
 git clone https://github.com/XVX-016/Aether-eye.git
 cd Aether-eye
 cp .env.example .env
 docker compose up -d
 ```
 
-Dashboard: http://localhost:3000  
-API docs: http://localhost:8000/docs
+Dashboard:  http://localhost:3000
+API docs:   http://localhost:8000/docs
 
-**Demo mode** (populates dashboard with realistic data):
-```powershell
+Demo mode (populates dashboard with realistic data):
+
+```text
 # Windows
 .\scripts\demo_start.ps1
 ```
@@ -146,11 +147,11 @@ API docs: http://localhost:8000/docs
 | Source | Type | License |
 |---|---|---|
 | ESA Copernicus Sentinel-2 | Satellite imagery | Free, open government data |
-| OpenSky Network | ADS-B aircraft positions | Free for non-commercial |
+| OpenSky Network | ADS-B aircraft positions | Free for non-commercial use |
 | BBC News, Sky News | RSS intelligence | Public |
-| Breaking Defense | RSS intelligence | Public |
-| Al Jazeera, Arab News | RSS intelligence | Public |
-| The Aviationist, Naval News | RSS intelligence | Public |
+| Breaking Defense, The Aviationist | RSS intelligence | Public |
+| Al Jazeera, Arab News, The National | RSS intelligence | Public |
+| Naval News, Middle East Eye | RSS intelligence | Public |
 
 ---
 
@@ -168,30 +169,36 @@ The system is fully self-hosted and supports air-gapped deployment with pre-down
 
 Minimum recommended specification:
 - 4 CPU cores
-- 8GB RAM (16GB recommended for ML inference)
-- 50GB storage
-- Ubuntu 22.04 LTS
+- 8 GB RAM (16 GB recommended for ML inference)
+- 50 GB storage
+- Ubuntu 22.04 LTS or Windows Server 2022
 
 ---
 
 ## Project Structure
 
 ```text
-Aether-eye/
-|-- backend/
-|   |-- app/          # FastAPI application, routes, schemas
-|   |-- pipeline/     # Scene processing, change detection, event engine
-|   |-- services/     # Intel feed, ADS-B
-|   |-- configs/      # Site registry, STAC config, model config
-|   `-- alembic/      # Database migrations
-|-- frontend/
-|   |-- app/          # Next.js App Router pages
-|   `-- components/   # Dashboard components
-|-- ml_core/
-|   |-- aether_ml/    # Training code, model definitions
-|   `-- artifacts/    # Trained model checkpoints
-|-- scripts/          # Seed data, demo launcher, healthcheck
-`-- docker-compose.yml
+backend/
+  app/        FastAPI application, routes, schemas, database models
+  pipeline/   Scene tiling, change detection, event engine, STAC watcher
+  services/   Intelligence feed ingestion, ADS-B integration
+  configs/    Global site registry, STAC config, inference config
+  alembic/    Database migrations
+
+frontend/
+  app/        Next.js App Router pages
+  components/ Dashboard components (map, feed, site detail, timeline)
+
+ml_core/
+  aether_ml/  Model training, evaluation, dataset loaders
+  artifacts/  Trained model checkpoints (change_model_v2)
+
+scripts/
+  seed_demo_data.py   Populate dashboard with demo data
+  demo_start.ps1      One-command demo launcher (Windows)
+  healthcheck.sh      Service validation script
+
+docker-compose.yml    Full stack deployment
 ```
 
 ---
@@ -199,5 +206,3 @@ Aether-eye/
 ## License
 
 Proprietary. All rights reserved.
-
----
