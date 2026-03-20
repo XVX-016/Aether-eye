@@ -1,0 +1,9 @@
+{
+  "best_epoch": 54.0,
+  "best_val_f1": 0.8919413263975652,
+  "best_val_iou": 0.8049593852725607,
+  "best_val_precision": 0.8814408254682852,
+  "best_val_recall": 0.9026960502335352,
+  "best_val_pixel_accuracy": 0.990821182727799,
+  "best_model_path": "C:\\Computing\\Aether-eye\\experiments\\change\\run_01\\best.pt"
+}

@@ -27,6 +27,18 @@ The system operates entirely on-premises. No data leaves the deployment environm
 
 ---
 
+## Aircraft Intelligence Module
+
+The Aircraft Intelligence module provides a dedicated workflow for fine-grained aircraft identification and activity analysis. It combines a ConvNeXt-based classifier with geospatial tracking to support both commercial and military aviation monitoring.
+
+- Aircraft classification across 100 aircraft types, including commercial and military platforms such as `F-16A/B`, `F/A-18`, `Eurofighter Typhoon`, `C-130`, and `Il-76`
+- Grad-CAM explainability overlays for model attention visualization
+- Friend/foe contextual tagging based on operator-selected country
+- Activity metrics derived from geospatial queries in PostGIS, including counts, observation frequency, and movement context by airport, airbase, and monitored airspace region
+- Designed to integrate with uploaded imagery workflows today and satellite-specific aircraft monitoring workflows as additional detector artifacts are packaged
+
+---
+
 ## Monitored Sites
 
 18 sites across four categories:
