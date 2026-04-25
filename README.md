@@ -18,9 +18,14 @@ The system operates entirely on-premises. No data leaves the deployment environm
 
 <!-- Add screenshots here -->
 
-- Operations Dashboard — Global site monitoring with 18 critical sites
 - Aircraft Intelligence — ConvNeXt classification with Grad-CAM explainability
+![alt text](image-2.png)
+
 - Change Intelligence — Before/after satellite comparison with change mask
+![alt text](image-1.png)
+
+- Operations Dashboard — Global site monitoring with 18 critical sites
+![alt text](image.png)
 
 ---
 
