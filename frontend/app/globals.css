@@ -265,6 +265,36 @@ body > * {
   pointer-events: none;
 }
 
+.hero-streaks {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  opacity: 0.18;
+  pointer-events: none;
+}
+
+.hero-streak {
+  position: absolute;
+  left: -30%;
+  width: 70%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  animation: heroStreakMove 11s linear infinite;
+}
+
+.hero-streak-1 { top: 16%; transform: rotate(7deg); animation-delay: -1s; }
+.hero-streak-2 { top: 24%; transform: rotate(-5deg); animation-delay: -3s; }
+.hero-streak-3 { top: 33%; transform: rotate(9deg); animation-delay: -5s; }
+.hero-streak-4 { top: 44%; transform: rotate(-8deg); animation-delay: -7s; }
+.hero-streak-5 { top: 58%; transform: rotate(6deg); animation-delay: -2s; }
+.hero-streak-6 { top: 73%; transform: rotate(-6deg); animation-delay: -9s; }
+
+@keyframes heroStreakMove {
+  from { transform: translateX(0); }
+  50% { opacity: 0.32; }
+  to { transform: translateX(190%); opacity: 0.08; }
+}
+
 .hero-content {
   position: relative;
   z-index: 10;

@@ -64,11 +64,31 @@ class ViTAircraftClassifierPipeline:
             ]
         )
 
-        # Grad-CAM currently supported only for ViT-like patch models in this project.
+        # Grad-CAM support for both ViT and ConvNeXt backbones.
         self.gradcam_engine: ViTGradCam | None = None
-        if "vit" in self.model_name.lower():
-            grid_size = self._infer_grid_size()
-            self.gradcam_engine = ViTGradCam(model=self.model, grid_size=grid_size)
+        try:
+            target_layer = None
+            use_reshape = True
+
+            if hasattr(self.model, "blocks") and len(self.model.blocks) > 0:
+                # ViT-like
+                target_layer = self.model.blocks[-1].norm1
+            elif hasattr(self.model, "stages") and len(self.model.stages) > 0:
+                # ConvNeXt-like
+                target_layer = self.model.stages[-1].blocks[-1]
+                use_reshape = False
+
+            if target_layer:
+                grid_size = self._infer_grid_size()
+                self.gradcam_engine = ViTGradCam(
+                    model=self.model,
+                    grid_size=grid_size,
+                    target_layer=target_layer,
+                    use_reshape=use_reshape,
+                )
+        except Exception:
+            # Grad-CAM initialization failed for this specific architecture/checkpoint.
+            self.gradcam_engine = None
 
     def _build_model(self) -> nn.Module:
         return timm.create_model(self.model_name, pretrained=False, num_classes=self.num_classes)
@@ -163,9 +183,7 @@ class ViTAircraftClassifierPipeline:
     ) -> tuple[ViTClassificationResult, np.ndarray]:
         """Returns (classification_result, heatmap float32 [H, W] in [0,1])."""
         if self.gradcam_engine is None:
-            raise RuntimeError(
-                f"Grad-CAM is only supported for ViT models in this pipeline. Current model: {self.model_name}"
-            )
+            raise RuntimeError("Grad-CAM explainability is not available for this model configuration.")
 
         x = self._prepare_tensor(image)
         base_cls = self.classify(image)

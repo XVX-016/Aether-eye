@@ -180,19 +180,45 @@ export const DetectionMap = forwardRef<DetectionMapHandle, Props>(function Detec
             return;
         }
 
+        const STYLES = [
+            "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+            "https://demotiles.maplibre.org/style.json",
+        ];
+        let styleIndex = 0;
+
+        // Firefox compatibility: check WebGL support explicitly
+        const canvas = document.createElement("canvas");
+        const gl = canvas.getContext("webgl2") || canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+        if (!gl) {
+            console.error("WebGL not supported, map cannot initialize.");
+            setMapError(true);
+            return;
+        }
+
         let map: Map;
         try {
             map = new maplibregl.Map({
                 container: containerRef.current,
-                style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+                style: STYLES[0],
                 center: DEFAULT_CENTER,
                 zoom: 2.5,
-            });
+                antialias: false, // Performance fix for Firefox
+                preserveDrawingBuffer: true, // Required for certain Firefox privacy modes
+            } as any);
         } catch (err) {
             console.error("Map initialization failed:", err);
             setMapError(true);
             return;
         }
+
+        // Firefox fallback: retry with a different style if the first one is blocked (ETP)
+        map.on("error", (e) => {
+            if (e.error?.message?.includes("style") && styleIndex === 0) {
+                console.warn("Primary map style blocked/failed, falling back to MapLibre demo tiles");
+                styleIndex = 1;
+                map.setStyle(STYLES[1]);
+            }
+        });
 
         map.addControl(new maplibregl.NavigationControl(), "top-right");
 

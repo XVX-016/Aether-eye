@@ -179,7 +179,7 @@ export default function OperationsPage() {
     );
 
     const topSites = useMemo(
-        () => [...siteStatuses].sort((a, b) => (b.anomaly_factor ?? 0) - (a.anomaly_factor ?? 0)).slice(0, 5),
+        () => [...siteStatuses].sort((a, b) => (b.anomaly_factor ?? 0) - (a.anomaly_factor ?? 0)),
         [siteStatuses],
     );
 
@@ -262,7 +262,7 @@ export default function OperationsPage() {
                                 </div>
 
                                 {feedTab === "GLOBAL_TRENDS" ? (
-                                    <div className="ops-feed-list" style={{ maxHeight: "60vh", overflowY: "auto" }}>
+                                    <div className="ops-feed-list">
                                         {topSites.map((site) => (
                                             <button
                                                 key={site.id}
@@ -284,7 +284,7 @@ export default function OperationsPage() {
                                         ))}
                                     </div>
                                 ) : feedTab === "GLOBAL_INTEL" ? (
-                                    <div className="ops-feed-list" style={{ maxHeight: "60vh", overflowY: "auto" }}>
+                                    <div className="ops-feed-list">
                                         {globalIntelLoading ? (
                                             Array.from({ length: 3 }).map((_, index) => (
                                                 <div

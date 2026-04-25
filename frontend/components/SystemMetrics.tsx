@@ -45,6 +45,12 @@ export const SystemMetrics: React.FC<Props> = ({ metrics }) => {
                     </div>
                 </div>
             </div>
+            {device_used?.toUpperCase() === "CPU" && (inference_time_ms ?? 0) > 5000 && (
+                <div style={{ color: "#4B5563", fontSize: "0.65rem", marginTop: "0.5rem" }}>
+                    GPU acceleration unavailable — inference running on CPU.
+                    CUDA-enabled deployment reduces inference time to ~3s.
+                </div>
+            )}
         </ContentPanel>
     );
 };

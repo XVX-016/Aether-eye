@@ -92,15 +92,7 @@ export function EventFeed({ events, onEventClick, loading }: Props) {
     );
 
     return (
-        <aside className="ops-feed glass-panel" style={{ height: "100%" }}>
-            <div className="ops-feed-header">
-                <div>
-                    <div className="ops-kicker mono">Recent Events</div>
-                    <h2 className="ops-feed-title mono">Event Feed</h2>
-                </div>
-                <div className="ops-feed-count mono">{filteredEvents.length}</div>
-            </div>
-
+        <>
             <div className="ops-filter-row">
                 {FILTERS.map((value) => (
                     <button
@@ -114,7 +106,7 @@ export function EventFeed({ events, onEventClick, loading }: Props) {
                 ))}
             </div>
 
-            <div className="ops-feed-list" style={{ maxHeight: "60vh", overflowY: "auto" }}>
+            <div className="ops-feed-list">
                 {loading ? (
                     <div className="empty-state small empty-state-plain">Loading events…</div>
                 ) : filteredEvents.length === 0 ? (
@@ -148,6 +140,6 @@ export function EventFeed({ events, onEventClick, loading }: Props) {
                     })
                 )}
             </div>
-        </aside>
+        </>
     );
 }

@@ -49,6 +49,7 @@ export default function AircraftIntelligencePage() {
     const [gradcam, setGradcam] = useState<AircraftGradCamResponse | null>(null);
     const [classifying, setClassifying] = useState(false);
     const [gradcamLoading, setGradcamLoading] = useState(false);
+    const [gradcamError, setGradcamError] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showHeatmap, setShowHeatmap] = useState(true);
     const [classifierOnline, setClassifierOnline] = useState(false);
@@ -106,11 +107,16 @@ export default function AircraftIntelligencePage() {
             const classification = await runAircraftClassification(file, country);
             setResult(classification);
             setGradcamLoading(true);
+            setGradcamError(false);
             try {
                 const heatmap = await runAircraftGradCam(file, country);
                 setGradcam(heatmap);
-            } catch (gradcamError: any) {
-                setError(gradcamError?.response?.data?.detail ?? "Grad-CAM generation failed.");
+            } catch (gcError: any) {
+                // Silently handle 400/4xx errors by showing fallback text in the heatmap area
+                setGradcamError(true);
+                if (gcError?.response?.status !== 400) {
+                    console.warn("Grad-CAM generation failed:", gcError);
+                }
             } finally {
                 setGradcamLoading(false);
             }
@@ -125,6 +131,7 @@ export default function AircraftIntelligencePage() {
         setFile(nextFile);
         setResult(null);
         setGradcam(null);
+        setGradcamError(false);
         setError(null);
     }
 
@@ -339,6 +346,12 @@ export default function AircraftIntelligencePage() {
                                                 {[0, 1, 2].map((key) => (
                                                     <div key={key} className="ops-stat-pulse" style={{ height: key === 0 ? "55%" : "14px", background: "rgba(255,255,255,0.06)" }} />
                                                 ))}
+                                            </div>
+                                        ) : gradcamError ? (
+                                            <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", color: "#4B5563" }}>
+                                                <div className="mono" style={{ fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                                                    Attention map unavailable
+                                                </div>
                                             </div>
                                         ) : null}
                                     </div>

@@ -26,13 +26,14 @@ class ViTGradCam:
     that converts patch tokens into a spatial feature map.
     """
 
-    def __init__(self, model: nn.Module, grid_size: Tuple[int, int], target_layer: nn.Module | None = None) -> None:
+    def __init__(self, model: nn.Module, grid_size: Tuple[int, int], target_layer: nn.Module, use_reshape: bool = True) -> None:
         self.model = model
         self.grid_h, self.grid_w = grid_size
-
-        self.target_layer = target_layer or getattr(getattr(self.model, "blocks")[-1], "norm1")
+        self.target_layer = target_layer
 
         def reshape_transform(tensor: torch.Tensor) -> torch.Tensor:
+            if not use_reshape:
+                return tensor
             # tensor: [B, 1 + HW, C] where first token is cls token
             result = tensor[:, 1:, :].reshape(tensor.size(0), self.grid_h, self.grid_w, tensor.size(2))
             # -> [B, C, H, W]
