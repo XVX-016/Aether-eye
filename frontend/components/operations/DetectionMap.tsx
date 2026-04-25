@@ -2,10 +2,11 @@
 
 import "maplibre-gl/dist/maplibre-gl.css";
 
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
-import maplibregl, { type GeoJSONSource, type LngLatLike, type Map, type MapMouseEvent } from "maplibre-gl";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import maplibregl, { type GeoJSONSource, type LayerSpecification, type LngLatLike, type Map, type MapMouseEvent } from "maplibre-gl";
 
-import type { OperationsEvent, SiteGeoJson, SiteProperties } from "@/types/operations";
+import { fetchGlobalFlights, fetchSitesGeoJson } from "@/lib/api";
+import type { FlightState, OperationsEvent, SiteFeature, SiteGeoJson, SiteProperties } from "@/types/operations";
 
 type Props = {
     events: OperationsEvent[];
@@ -26,8 +27,19 @@ const EVENT_COLORS: Record<string, string> = {
     ELEVATED_ACTIVITY: "#F59E0B",
 };
 
-const DUBAI_AOI_BBOX: [number, number, number, number] = [55.33, 25.23, 55.4, 25.27];
-const DEFAULT_CENTER: [number, number] = [55.36, 25.25];
+const PRIORITY_COLORS: Record<string, string> = {
+    critical: "#EF4444",
+    high: "#F59E0B",
+    medium: "#6B7280",
+};
+
+const PRIORITY_RADIUS: Record<string, number> = {
+    critical: 10,
+    high: 8,
+    medium: 6,
+};
+
+const DEFAULT_CENTER: [number, number] = [20, 20];
 
 function buildEventCollection(events: OperationsEvent[]) {
     return {
@@ -44,33 +56,55 @@ function buildEventCollection(events: OperationsEvent[]) {
                 confidence: event.confidence ?? 0,
                 priority: event.priority,
                 timestamp: event.timestamp,
-                color: EVENT_COLORS[event.event_type] ?? "#ef4444",
+                color: EVENT_COLORS[event.event_type] ?? "#EF4444",
             },
         })),
     };
 }
 
-function buildAoiCollection() {
-    const [minLon, minLat, maxLon, maxLat] = DUBAI_AOI_BBOX;
+function buildFlightCollection(flights: FlightState[]) {
     return {
         type: "FeatureCollection" as const,
-        features: [{
+        features: flights.map((f) => ({
             type: "Feature" as const,
             geometry: {
-                type: "Polygon" as const,
-                coordinates: [[
-                    [minLon, minLat],
-                    [maxLon, minLat],
-                    [maxLon, maxLat],
-                    [minLon, maxLat],
-                    [minLon, minLat],
-                ]],
+                type: "Point" as const,
+                coordinates: [f.lon ?? 0, f.lat ?? 0],
             },
             properties: {
-                id: "dubai_airport",
-                name: "Dubai Airport",
+                icao24: f.icao24,
+                callsign: f.callsign ?? "UNKNOWN",
+                altitude: f.altitude_m ?? 0,
+                on_ground: f.on_ground,
             },
-        }],
+        })),
+    };
+}
+
+function buildSiteBboxCollection(sites: SiteGeoJson | null) {
+    return {
+        type: "FeatureCollection" as const,
+        features: (sites?.features ?? []).map((feature) => {
+            const [minLon, minLat, maxLon, maxLat] = feature.properties.bbox;
+            const color = PRIORITY_COLORS[feature.properties.priority] ?? "#6B7280";
+            return {
+                type: "Feature" as const,
+                geometry: {
+                    type: "Polygon" as const,
+                    coordinates: [[
+                        [minLon, minLat],
+                        [maxLon, minLat],
+                        [maxLon, maxLat],
+                        [minLon, maxLat],
+                        [minLon, minLat],
+                    ]],
+                },
+                properties: {
+                    ...feature.properties,
+                    color,
+                },
+            };
+        }),
     };
 }
 
@@ -84,18 +118,45 @@ function relativeTimestamp(iso: string) {
     return `${Math.floor(hours / 24)}d ago`;
 }
 
+function formatSiteType(value: string) {
+    return value.replaceAll("_", " ");
+}
+
 export const DetectionMap = forwardRef<DetectionMapHandle, Props>(function DetectionMap(
-    { events, onReady },
+    { events, sitesGeoJson, onReady, onSiteClick, selectedSiteId = null },
     ref,
 ) {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<Map | null>(null);
     const popupRef = useRef<maplibregl.Popup | null>(null);
-    const eventsRef = useRef<OperationsEvent[]>(events);
+    const [mapError, setMapError] = useState(false);
+    const [flights, setFlights] = useState<FlightState[]>([]);
+
+    const displayEvents = useMemo(() => events.slice(-200), [events]);
+    const eventsRef = useRef<OperationsEvent[]>(displayEvents);
+    const siteGeoJsonRef = useRef<SiteGeoJson | null>(sitesGeoJson ?? null);
 
     useEffect(() => {
-        eventsRef.current = events;
-    }, [events]);
+        eventsRef.current = displayEvents;
+    }, [displayEvents]);
+
+    useEffect(() => {
+        let active = true;
+        const loadFlights = async () => {
+            try {
+                const data = await fetchGlobalFlights(1);
+                if (active) setFlights(data);
+            } catch (e) {
+                console.warn("Failed to fetch global flights for map", e);
+            }
+        };
+        loadFlights();
+        const timer = setInterval(loadFlights, 30_000);
+        return () => {
+            active = false;
+            clearInterval(timer);
+        };
+    }, []);
 
     useImperativeHandle(ref, () => ({
         flyTo(lon: number, lat: number, zoom = 14) {
@@ -104,23 +165,116 @@ export const DetectionMap = forwardRef<DetectionMapHandle, Props>(function Detec
     }));
 
     useEffect(() => {
-        if (!containerRef.current || mapRef.current) {
+        siteGeoJsonRef.current = sitesGeoJson ?? null;
+        const map = mapRef.current;
+        if (map?.isStyleLoaded() && sitesGeoJson) {
+            const siteSource = map.getSource("ops-sites") as GeoJSONSource | undefined;
+            siteSource?.setData(sitesGeoJson);
+            const bboxSource = map.getSource("ops-site-bboxes") as GeoJSONSource | undefined;
+            bboxSource?.setData(buildSiteBboxCollection(sitesGeoJson));
+        }
+    }, [sitesGeoJson]);
+
+    useEffect(() => {
+        if (!containerRef.current || mapRef.current || mapError) {
             return;
         }
 
-        const map = new maplibregl.Map({
-            container: containerRef.current,
-            style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
-            center: DEFAULT_CENTER,
-            zoom: 10,
-        });
+        let map: Map;
+        try {
+            map = new maplibregl.Map({
+                container: containerRef.current,
+                style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+                center: DEFAULT_CENTER,
+                zoom: 2.5,
+            });
+        } catch (err) {
+            console.error("Map initialization failed:", err);
+            setMapError(true);
+            return;
+        }
 
         map.addControl(new maplibregl.NavigationControl(), "top-right");
 
         map.on("load", () => {
+            map.addSource("ops-sites", {
+                type: "geojson",
+                data: siteGeoJsonRef.current ?? { type: "FeatureCollection", features: [] },
+            });
+            map.addLayer({
+                id: "ops-sites-circle",
+                type: "circle",
+                source: "ops-sites",
+                paint: {
+                    "circle-radius": [
+                        "match",
+                        ["get", "priority"],
+                        "critical", PRIORITY_RADIUS.critical,
+                        "high", PRIORITY_RADIUS.high,
+                        "medium", PRIORITY_RADIUS.medium,
+                        6,
+                    ],
+                    "circle-color": [
+                        "match",
+                        ["get", "priority"],
+                        "critical", PRIORITY_COLORS.critical,
+                        "high", PRIORITY_COLORS.high,
+                        "medium", PRIORITY_COLORS.medium,
+                        "#6B7280",
+                    ],
+                    "circle-stroke-width": 1.25,
+                    "circle-stroke-color": "#020408",
+                    "circle-opacity": 0.9,
+                },
+            });
+
+            map.addSource("ops-site-bboxes", {
+                type: "geojson",
+                data: buildSiteBboxCollection(siteGeoJsonRef.current),
+            });
+            map.addLayer({
+                id: "ops-site-bboxes-fill",
+                type: "fill",
+                source: "ops-site-bboxes",
+                minzoom: 7,
+                paint: {
+                    "fill-color": ["get", "color"],
+                    "fill-opacity": 0.3,
+                },
+            });
+            map.addLayer({
+                id: "ops-site-bboxes-line",
+                type: "line",
+                source: "ops-site-bboxes",
+                minzoom: 7,
+                paint: {
+                    "line-color": ["get", "color"],
+                    "line-width": 2,
+                    "line-opacity": 1,
+                },
+            });
+
+            map.addSource("flights-source", {
+                type: "geojson",
+                data: buildFlightCollection([]),
+            });
+            map.addLayer({
+                id: "flights-layer",
+                type: "circle",
+                source: "flights-source",
+                minzoom: 5,
+                paint: {
+                    "circle-radius": 4,
+                    "circle-color": "#22D3EE",
+                    "circle-stroke-width": 1,
+                    "circle-stroke-color": "#020408",
+                    "circle-opacity": 0.8,
+                },
+            });
+
             map.addSource("ops-events", {
                 type: "geojson",
-                data: buildEventCollection([]),
+                data: buildEventCollection(eventsRef.current),
             });
             map.addLayer({
                 id: "ops-events-circle",
@@ -131,23 +285,43 @@ export const DetectionMap = forwardRef<DetectionMapHandle, Props>(function Detec
                     "circle-color": ["get", "color"],
                     "circle-stroke-width": 1.5,
                     "circle-stroke-color": "#020408",
-                    "circle-opacity": 0.95,
+                    "circle-opacity": 0.7,
                 },
             });
 
-            map.addSource("ops-aois", {
-                type: "geojson",
-                data: buildAoiCollection(),
+            map.on("mouseenter", "ops-sites-circle", () => {
+                map.getCanvas().style.cursor = "pointer";
             });
-            map.addLayer({
-                id: "ops-aois-line",
-                type: "line",
-                source: "ops-aois",
-                paint: {
-                    "line-color": "#3b82f6",
-                    "line-width": 2,
-                    "line-opacity": 0.8,
-                },
+            map.on("mouseleave", "ops-sites-circle", () => {
+                map.getCanvas().style.cursor = "";
+            });
+            map.on("mouseenter", "ops-events-circle", () => {
+                map.getCanvas().style.cursor = "pointer";
+            });
+            map.on("mouseleave", "ops-events-circle", () => {
+                map.getCanvas().style.cursor = "";
+            });
+
+            map.on("click", "ops-sites-circle", (event: MapMouseEvent & { features?: any[] }) => {
+                const feature = event.features?.[0] as SiteFeature | undefined;
+                if (!feature || feature.geometry.type !== "Point") {
+                    return;
+                }
+                const props = feature.properties;
+                popupRef.current?.remove();
+                popupRef.current = new maplibregl.Popup({ offset: 16 })
+                    .setLngLat(feature.geometry.coordinates)
+                    .setHTML(
+                        `
+                        <div class="ops-map-popup">
+                          <div class="ops-map-popup-title">${props.name}</div>
+                          <div>${formatSiteType(props.type)}</div>
+                          <div>${props.country}</div>
+                        </div>
+                        `,
+                    )
+                    .addTo(map);
+                onSiteClick?.(props);
             });
 
             map.on("click", "ops-events-circle", (event: MapMouseEvent & { features?: any[] }) => {
@@ -173,15 +347,19 @@ export const DetectionMap = forwardRef<DetectionMapHandle, Props>(function Detec
                     )
                     .addTo(map);
                 if (selected) {
-                    map.flyTo({ center: [selected.lon, selected.lat], zoom: 14, essential: true });
+                    map.flyTo({ center: [selected.lon, selected.lat], zoom: 10, essential: true });
                 }
             });
 
-            map.on("mouseenter", "ops-events-circle", () => {
-                map.getCanvas().style.cursor = "pointer";
-            });
-            map.on("mouseleave", "ops-events-circle", () => {
-                map.getCanvas().style.cursor = "";
+            map.on("zoom", () => {
+                const zoom = map.getZoom();
+                if (map.getLayer("flights-layer")) {
+                    map.setLayoutProperty(
+                        "flights-layer",
+                        "visibility",
+                        zoom >= 5 ? "visible" : "none",
+                    );
+                }
             });
         });
 
@@ -193,12 +371,18 @@ export const DetectionMap = forwardRef<DetectionMapHandle, Props>(function Detec
         });
 
         return () => {
-            popupRef.current?.remove();
-            map.remove();
-            mapRef.current = null;
+            try {
+                popupRef.current?.remove();
+                if (mapRef.current) {
+                    mapRef.current.remove();
+                    mapRef.current = null;
+                }
+            } catch (e) {
+                console.warn("Map cleanup error:", e);
+            }
             onReady?.(null);
         };
-    }, [onReady]);
+    }, [onReady, onSiteClick]);
 
     useEffect(() => {
         const map = mapRef.current;
@@ -206,8 +390,48 @@ export const DetectionMap = forwardRef<DetectionMapHandle, Props>(function Detec
             return;
         }
         const source = map.getSource("ops-events") as GeoJSONSource | undefined;
-        source?.setData(buildEventCollection(events));
-    }, [events]);
+        source?.setData(buildEventCollection(displayEvents));
+    }, [displayEvents]);
+
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map || !map.isStyleLoaded()) {
+            return;
+        }
+        const source = map.getSource("flights-source") as GeoJSONSource | undefined;
+        source?.setData(buildFlightCollection(flights));
+    }, [flights]);
+
+    useEffect(() => {
+        if (!selectedSiteId || !siteGeoJsonRef.current || !mapRef.current) {
+            return;
+        }
+        const feature = siteGeoJsonRef.current.features.find((item) => item.properties.id === selectedSiteId);
+        if (!feature) {
+            return;
+        }
+        const [lon, lat] = feature.geometry.coordinates;
+        mapRef.current.flyTo({ center: [lon, lat], zoom: 10, essential: true });
+    }, [selectedSiteId]);
+
+    if (mapError) {
+        return (
+            <div style={{
+                height: "60vh",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "#0a0a0a",
+                color: "#4B5563",
+                fontFamily: "monospace",
+                fontSize: "0.75rem",
+                letterSpacing: "0.1em",
+            }}
+            >
+                MAP UNAVAILABLE — RELOAD TO RETRY
+            </div>
+        );
+    }
 
     return <div ref={containerRef} className="ops-map-canvas" />;
 });

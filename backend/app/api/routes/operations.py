@@ -287,4 +287,7 @@ async def get_global_intel(
     db: AsyncSession = Depends(get_db),
 ) -> list[IntelArticleResponse]:
     rows = await get_global_articles(db, hours)
-    return [IntelArticleResponse(**row) for row in rows]
+    return [
+        IntelArticleResponse(**row) if isinstance(row, dict) else IntelArticleResponse(**row._mapping)
+        for row in rows
+    ]
