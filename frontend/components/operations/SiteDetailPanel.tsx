@@ -108,41 +108,57 @@ export function SiteDetailPanel({ site, onClose }: Props) {
     }
 
     return (
-        <aside className="ops-feed glass-panel" style={{ height: "100%", overflowY: "auto", padding: "1.1rem", borderRadius: 2 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", marginBottom: "1rem" }}>
-                <div>
-                    <div className="ops-kicker mono">Site Detail</div>
-                    <h2 className="ops-panel-title" style={{ marginBottom: "0.45rem" }}>{site.name}</h2>
-                    <div className="mono" style={{ color: "#4B5563", fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                        {formatLabel(site.type)}  ·  {formatLabel(site.priority)}  ·  {site.country}
+        <aside
+            className="ops-feed glass-panel site-panel-scroll"
+            style={{
+                position: "relative",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                overflow: "hidden",
+                background: "#0d0d0d",
+                border: "1px solid #1f1f1f",
+                borderRadius: 2,
+            }}
+        >
+            <div style={{ flexShrink: 0, padding: "1.1rem", borderBottom: "1px solid #1f1f1f" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", marginBottom: "1rem" }}>
+                    <div>
+                        <div className="ops-kicker mono">Site Detail</div>
+                        <h2 className="ops-panel-title" style={{ marginBottom: "0.45rem" }}>{site.name}</h2>
+                        <div className="mono" style={{ color: "#4B5563", fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                            {formatLabel(site.type)}  ·  {formatLabel(site.priority)}  ·  {site.country}
+                        </div>
+                    </div>
+                    <button type="button" className="ops-filter-btn" onClick={onClose}>Close</button>
+                </div>
+
+                <div className="glass-panel" style={{ padding: "0.9rem", borderRadius: 2 }}>
+                    <div className="ops-kicker mono">Current Status</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginTop: "0.65rem" }}>
+                        <div>
+                            <div className="mono" style={{ fontSize: "0.65rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Today</div>
+                            <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>{status?.today_count ?? "--"}</div>
+                        </div>
+                        <div>
+                            <div className="mono" style={{ fontSize: "0.65rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Baseline</div>
+                            <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>{status?.baseline ? status.baseline.toFixed(1) : "--"}</div>
+                        </div>
+                        <div>
+                            <div className="mono" style={{ fontSize: "0.65rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Anomaly Factor</div>
+                            <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>{status?.anomaly_factor ? status.anomaly_factor.toFixed(2) : "--"}</div>
+                        </div>
+                        <div>
+                            <div className="mono" style={{ fontSize: "0.65rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Status</div>
+                            <span className="mono" style={{ display: "inline-block", marginTop: "0.3rem", textTransform: "uppercase", ...statusStyle(status?.status ?? "normal") }}>
+                                {status?.status ?? "normal"}
+                            </span>
+                        </div>
                     </div>
                 </div>
-                <button type="button" className="ops-filter-btn" onClick={onClose}>Close</button>
             </div>
 
-            <div className="glass-panel" style={{ padding: "0.9rem", marginBottom: "1rem", borderRadius: 2 }}>
-                <div className="ops-kicker mono">Current Status</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginTop: "0.65rem" }}>
-                    <div>
-                        <div className="mono" style={{ fontSize: "0.65rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Today</div>
-                        <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>{status?.today_count ?? "--"}</div>
-                    </div>
-                    <div>
-                        <div className="mono" style={{ fontSize: "0.65rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Baseline</div>
-                        <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>{status?.baseline ? status.baseline.toFixed(1) : "--"}</div>
-                    </div>
-                    <div>
-                        <div className="mono" style={{ fontSize: "0.65rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Anomaly Factor</div>
-                        <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>{status?.anomaly_factor ? status.anomaly_factor.toFixed(2) : "--"}</div>
-                    </div>
-                    <div>
-                        <div className="mono" style={{ fontSize: "0.65rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Status</div>
-                        <span className="mono" style={{ display: "inline-block", marginTop: "0.3rem", textTransform: "uppercase", ...statusStyle(status?.status ?? "normal") }}>
-                            {status?.status ?? "normal"}
-                        </span>
-                    </div>
-                </div>
-            </div>
+            <div style={{ flex: 1, overflowY: "auto", padding: "1.1rem", scrollbarWidth: "thin", scrollbarColor: "#374151 transparent" }}>
 
             <div className="glass-panel" style={{ padding: "0.9rem", marginBottom: "1rem", borderRadius: 2 }}>
                 <div className="ops-kicker mono">Flight Activity</div>
@@ -270,12 +286,13 @@ export function SiteDetailPanel({ site, onClose }: Props) {
                                     display: "block",
                                     textDecoration: "none",
                                     color: "inherit",
-                                    padding: "0.85rem",
+                                    padding: "0.75rem",
                                     borderRadius: "2px",
-                                    background: "rgba(255,255,255,0.025)",
-                                    border: "1px solid rgba(255,255,255,0.06)",
-                                    marginBottom: "0.65rem",
+                                    background: "#111",
+                                    border: "1px solid #1f1f1f",
+                                    marginBottom: "0.5rem",
                                     transition: "background 140ms ease, border-color 140ms ease",
+                                    cursor: "pointer",
                                 }}
                                 onMouseEnter={(event) => {
                                     event.currentTarget.style.background = "rgba(255,255,255,0.05)";
@@ -320,6 +337,7 @@ export function SiteDetailPanel({ site, onClose }: Props) {
                 <div className="ops-kicker mono">Detection Timeline</div>
                 <div style={{ marginTop: "0.65rem", color: "var(--text-muted)" }}>Detection history will populate as satellite scenes are processed for this site.</div>
             </div>
-        </aside>
+        </div>
+    </aside>
     );
 }

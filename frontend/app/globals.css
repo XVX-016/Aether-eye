@@ -98,6 +98,10 @@ body > * {
   -webkit-backdrop-filter: blur(24px);
 }
 
+.site-panel-scroll::-webkit-scrollbar { width: 4px; }
+.site-panel-scroll::-webkit-scrollbar-track { background: transparent; }
+.site-panel-scroll::-webkit-scrollbar-thumb { background: #374151; }
+
 .glass-panel::before {
   content: "";
   position: absolute;
@@ -1494,11 +1498,16 @@ body > * {
   display: grid;
   grid-template-columns: minmax(0, 1.95fr) minmax(320px, 1fr);
   gap: 1.5rem;
+  height: 72vh;
+  min-height: 520px;
 }
 
 .ops-map-panel,
 .ops-feed {
   padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .ops-panel-header,
@@ -1535,7 +1544,7 @@ body > * {
 
 .ops-map-canvas {
   width: 100%;
-  height: 60vh;
+  flex: 1;
   min-height: 420px;
   border: 1px solid var(--border-subtle);
   overflow: hidden;
@@ -1594,7 +1603,8 @@ body > * {
 .ops-feed-list {
   display: grid;
   gap: 0.85rem;
-  max-height: calc(60vh + 95px);
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding-right: 0.2rem;
 }

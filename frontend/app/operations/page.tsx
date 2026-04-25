@@ -220,10 +220,11 @@ export default function OperationsPage() {
                             />
                         </section>
 
-                        {selectedSite ? (
-                            <SiteDetailPanel site={selectedSite} onClose={() => setSelectedSite(null)} />
-                        ) : (
-                            <aside className="ops-feed glass-panel" style={{ height: "100%" }}>
+                        <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+                            {selectedSite ? (
+                                <SiteDetailPanel site={selectedSite} onClose={() => setSelectedSite(null)} />
+                            ) : (
+                                <aside className="ops-feed glass-panel" style={{ height: "100%" }}>
                                 <div className="ops-feed-header">
                                     <div>
                                         <div className="ops-kicker mono">Intelligence Feed</div>
@@ -375,6 +376,7 @@ export default function OperationsPage() {
                                 )}
                             </aside>
                         )}
+                        </div>
                     </div>
 
                     <div className="glass-panel" style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
