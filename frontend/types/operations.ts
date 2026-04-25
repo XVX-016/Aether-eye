@@ -19,6 +19,9 @@ export interface SiteStatus {
     baseline?: number | null;
     anomaly_factor?: number | null;
     status: "normal" | "elevated" | "anomalous" | string;
+    today_flights?: number | null;
+    flight_baseline?: number | null;
+    flight_anomaly?: "normal" | "elevated" | "anomalous" | string;
 }
 
 export interface SiteProperties {
@@ -60,4 +63,27 @@ export interface SiteIntelResponse {
     site_id: string;
     articles: IntelArticle[];
     hours: number;
+}
+
+export interface FlightState {
+    site_id?: string | null;
+    icao24: string;
+    callsign?: string | null;
+    origin_country?: string | null;
+    lat?: number | null;
+    lon?: number | null;
+    altitude_m?: number | null;
+    velocity_ms?: number | null;
+    heading?: number | null;
+    on_ground: boolean;
+    timestamp: string;
+}
+
+export interface FlightActivity {
+    site_id: string;
+    recent_count: number;
+    unique_aircraft: number;
+    on_ground_count: number;
+    airborne_count: number;
+    latest_states: FlightState[];
 }

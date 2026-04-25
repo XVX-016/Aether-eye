@@ -47,7 +47,6 @@ def list_jobs() -> List[JobStatus]:
 from app.database.session import async_session
 from app.database.models import ObjectEvent as DBEvent
 from app.database.crud import get_latest_processed_scene_for_aoi, get_scene_by_id, update_scene_status
-from app.services.ingestion_service import load_stac_config
 from app.core.config import get_settings
 from requests import Session
 from requests.adapters import HTTPAdapter
@@ -133,6 +132,7 @@ async def process_scene_job(scene_id: str, job_id: str | None = None) -> None:
     if job_id is None:
         job_id = create_scene_job(scene_id)
     try:
+        from app.services.ingestion_service import load_stac_config
         from pipeline.site_aggregator import aggregate_scene_for_sites
         from pipeline.event_engine import generate_events
         from pipeline.scene_processor import process_scene

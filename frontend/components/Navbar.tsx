@@ -17,9 +17,12 @@ export const Navbar: React.FC = () => {
     return (
         <nav className="home-nav">
             <div className="home-nav-inner">
-                <div className="home-nav-brand mono">
+                <Link
+                    href="/"
+                    className="home-nav-brand mono home-nav-brand-button"
+                >
                     AETHER EYE
-                </div>
+                </Link>
                 <ul className="home-nav-links">
                     {NAV_ITEMS.map((item) => (
                         <li key={item.href}>
@@ -30,6 +33,7 @@ export const Navbar: React.FC = () => {
                                         ? "home-nav-link home-nav-link-active"
                                         : "home-nav-link"
                                 }
+                                aria-current={pathname === item.href ? "page" : undefined}
                             >
                                 {item.label}
                             </Link>

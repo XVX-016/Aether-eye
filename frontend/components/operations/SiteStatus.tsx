@@ -85,6 +85,7 @@ export function SiteStatusPanel({ onSiteClick }: Props) {
                             <th style={{ textAlign: "left", padding: "0.45rem 0.35rem" }}>Type</th>
                             <th style={{ textAlign: "left", padding: "0.45rem 0.35rem" }}>Priority</th>
                             <th style={{ textAlign: "right", padding: "0.45rem 0.35rem" }}>Today</th>
+                            <th style={{ textAlign: "right", padding: "0.45rem 0.35rem" }}>Flights</th>
                             <th style={{ textAlign: "right", padding: "0.45rem 0.35rem" }}>Baseline</th>
                             <th style={{ textAlign: "right", padding: "0.45rem 0.35rem" }}>Status</th>
                         </tr>
@@ -92,11 +93,11 @@ export function SiteStatusPanel({ onSiteClick }: Props) {
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan={6} style={{ padding: "0.85rem 0.35rem", color: "var(--text-muted)" }}>Loading site status...</td>
+                                <td colSpan={7} style={{ padding: "0.85rem 0.35rem", color: "var(--text-muted)" }}>Loading site status...</td>
                             </tr>
                         ) : rows.length === 0 ? (
                             <tr>
-                                <td colSpan={6} style={{ padding: "0.85rem 0.35rem", color: "var(--text-muted)" }}>No site status available.</td>
+                                <td colSpan={7} style={{ padding: "0.85rem 0.35rem", color: "var(--text-muted)" }}>No site status available.</td>
                             </tr>
                         ) : rows.map((row) => (
                             <tr
@@ -112,6 +113,7 @@ export function SiteStatusPanel({ onSiteClick }: Props) {
                                     </span>
                                 </td>
                                 <td style={{ padding: "0.65rem 0.35rem", textAlign: "right", color: "var(--text-primary)" }}>{row.today_count ?? "--"}</td>
+                                <td style={{ padding: "0.65rem 0.35rem", textAlign: "right", color: "var(--text-primary)" }}>{row.today_flights != null ? row.today_flights : "--"}</td>
                                 <td style={{ padding: "0.65rem 0.35rem", textAlign: "right", color: "var(--text-primary)" }}>{row.baseline != null && row.baseline > 0 ? row.baseline.toFixed(1) : "--"}</td>
                                 <td style={{ padding: "0.65rem 0.35rem", textAlign: "right" }}>
                                     <span className="mono" style={{ display: "inline-block", textTransform: "uppercase", ...statusStyle(row.status) }}>

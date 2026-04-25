@@ -10,6 +10,7 @@ $repoRoot = Split-Path -Path $backendRoot -Parent
 Set-Location $backendRoot
 
 $pythonCandidates = @(
+    "$repoRoot\.venv\Scripts\python.exe",
     "C:\mlenv\Scripts\python.exe",
     "C:\mlenv\venv\Scripts\python.exe"
 )

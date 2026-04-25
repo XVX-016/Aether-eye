@@ -213,6 +213,7 @@ export default function OperationsPage() {
                             <DetectionMap
                                 ref={mapRef}
                                 events={events}
+                                sitesGeoJson={sitesGeoJson}
                                 onReady={handleMapReady}
                                 onSiteClick={handleSiteSelect}
                                 selectedSiteId={selectedSite?.id ?? null}

@@ -6,7 +6,7 @@ import type {
     ChangeDetectionResponse,
     CountResponse,
 } from "./types";
-import type { IntelArticle, OperationsEvent, SiteGeoJson, SiteIntelResponse, SiteStatus } from "@/types/operations";
+import type { FlightActivity, FlightState, IntelArticle, OperationsEvent, SiteGeoJson, SiteIntelResponse, SiteStatus } from "@/types/operations";
 
 const api = axios.create({
     // Use Next.js same-origin API proxy to avoid browser CORS issues.
@@ -173,5 +173,15 @@ export async function fetchSiteIntel(siteId: string, hours = 48) {
 
 export async function fetchGlobalIntel(hours = 48) {
     const res = await api.get<IntelArticle[]>(`/intel/global?hours=${hours}`);
+    return res.data;
+}
+
+export async function fetchSiteFlights(siteId: string, hours = 24) {
+    const res = await api.get<FlightActivity>(`/sites/${encodeURIComponent(siteId)}/flights?hours=${hours}`);
+    return res.data;
+}
+
+export async function fetchGlobalFlights(hours = 1) {
+    const res = await api.get<FlightState[]>(`/flights/global?hours=${hours}`);
     return res.data;
 }

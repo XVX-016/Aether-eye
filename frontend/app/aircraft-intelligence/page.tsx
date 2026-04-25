@@ -211,7 +211,7 @@ export default function AircraftIntelligencePage() {
                                 }}
                             >
                                 {COUNTRIES.map((option) => (
-                                    <option key={option} value={option}>
+                                    <option key={option} value={option} style={{ color: "#000000" }}>
                                         {option}
                                     </option>
                                 ))}
@@ -345,9 +345,15 @@ export default function AircraftIntelligencePage() {
                                 </div>
 
                                 <div style={{ border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.02)", padding: "1rem" }}>
-                                    <div className="ops-kicker mono">Alternative Classifications</div>
-                                    <div className="mono" style={{ marginTop: "0.55rem", color: "#4B5563", fontSize: "0.62rem", textTransform: "uppercase" }}>
-                                        Top-5 breakdown available in next release
+                                    <div className="ops-kicker mono">Top-5 Confidence Breakdown</div>
+                                    <div style={{ marginTop: "0.9rem" }}>
+                                        <div className="mono" style={{ marginBottom: "0.35rem", fontSize: "0.6rem", color: "#4B5563", textTransform: "uppercase" }}>{result.class_name}</div>
+                                        <div style={{ height: "8px", background: "rgba(255,255,255,0.08)", position: "relative" }}>
+                                            <div style={{ width: `${(result.confidence * 100).toFixed(1)}%`, height: "100%", background: confidenceStyle(result.confidence) }} />
+                                        </div>
+                                        <div className="mono" style={{ marginTop: "0.35rem", fontSize: "0.62rem", color: "var(--text-muted)" }}>
+                                            {(result.confidence * 100).toFixed(1)}%
+                                        </div>
                                     </div>
                                 </div>
                             </div>

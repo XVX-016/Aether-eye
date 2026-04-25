@@ -4,20 +4,24 @@ from datetime import date, datetime, time, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pipeline.site_aggregator import get_site_status
 from pipeline.site_registry import get_all_sites_geojson
 from app.database.crud import get_aoi_baseline
-from app.database.models import ActivityAlert, AoiDailyCount, ObjectEvent, SatelliteScene, TileDetection
+from app.database.models import ActivityAlert, AoiDailyCount, FlightState, ObjectEvent, SatelliteScene, TileDetection
 from app.database.session import get_db
 from app.schemas.operations import (
     AoiBaselineResponse,
     CountResponse,
+    FlightActivityResponse,
+    FlightStateResponse,
     IntelArticleResponse,
     OperationsEvent,
     SiteStatusResponse,
 )
+from services.flight_feed import get_flight_activity_for_site
 from services.intel_feed import get_articles_for_site, get_global_articles
 
 router = APIRouter(tags=["operations"])
@@ -41,6 +45,22 @@ def _parse_bound(value: str, *, end_of_day: bool) -> datetime:
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=timezone.utc)
     return parsed.astimezone(timezone.utc)
+
+
+def _serialize_flight_state(state: FlightState) -> FlightStateResponse:
+    return FlightStateResponse(
+        site_id=state.site_id,
+        icao24=state.icao24,
+        callsign=state.callsign,
+        origin_country=state.origin_country,
+        lat=state.lat,
+        lon=state.lon,
+        altitude_m=state.altitude_m,
+        velocity_ms=state.velocity_ms,
+        heading=state.heading,
+        on_ground=state.on_ground,
+        timestamp=state.timestamp,
+    )
 
 
 @router.get("/events", response_model=list[OperationsEvent])
@@ -213,6 +233,52 @@ async def get_site_intel(
 ) -> list[IntelArticleResponse]:
     rows = await get_articles_for_site(db, site_id, hours)
     return [IntelArticleResponse(site_id=site_id, **row) for row in rows]
+
+
+@router.get("/sites/{site_id}/flights", response_model=FlightActivityResponse)
+async def get_site_flights(
+    site_id: str,
+    hours: int = Query(default=24, ge=1, le=24 * 30),
+    db: AsyncSession = Depends(get_db),
+) -> FlightActivityResponse:
+    try:
+        activity = await get_flight_activity_for_site(db, site_id, hours)
+    except SQLAlchemyError:
+        await db.rollback()
+        activity = {
+            "site_id": site_id,
+            "recent_count": 0,
+            "unique_aircraft": 0,
+            "on_ground_count": 0,
+            "airborne_count": 0,
+            "latest_states": [],
+        }
+    activity["latest_states"] = [
+        FlightStateResponse(**state) if isinstance(state, dict) else _serialize_flight_state(state)
+        for state in activity.get("latest_states", [])
+    ]
+    return FlightActivityResponse(**activity)
+
+
+@router.get("/flights/global", response_model=list[FlightStateResponse])
+async def get_global_flights(
+    hours: int = Query(default=1, ge=1, le=24 * 7),
+    db: AsyncSession = Depends(get_db),
+) -> list[FlightStateResponse]:
+    try:
+        since = datetime.now(timezone.utc) - timedelta(hours=hours)
+        result = await db.execute(
+            select(FlightState)
+            .where(FlightState.site_id.is_not(None))
+            .where(FlightState.timestamp >= since)
+            .order_by(FlightState.timestamp.desc())
+            .limit(200)
+        )
+        rows = result.scalars().all()
+        return [_serialize_flight_state(row) for row in rows]
+    except SQLAlchemyError:
+        await db.rollback()
+        return []
 
 
 @router.get("/intel/global", response_model=list[IntelArticleResponse])

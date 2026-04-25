@@ -1,5 +1,6 @@
 # AETHER-EYE
 ### Satellite Intelligence Platform
+**Version: v1.1.0**
 
 Automated satellite imagery analysis and open-source intelligence correlation for critical infrastructure monitoring.
 
@@ -13,15 +14,27 @@ The system operates entirely on-premises. No data leaves the deployment environm
 
 ---
 
+## Screenshots
+
+<!-- Add screenshots here -->
+
+- Operations Dashboard — Global site monitoring with 18 critical sites
+- Aircraft Intelligence — ConvNeXt classification with Grad-CAM explainability
+- Change Intelligence — Before/after satellite comparison with change mask
+
+---
+
 ## Capabilities
 
 | Capability | Detail |
 |---|---|
 | Satellite ingestion | Automated Sentinel-2 L2A scene discovery via Copernicus STAC |
-| Change detection | SiameseUNet ML model, test IoU 0.82 on building change dataset |
+| Change detection | SiameseUNet (ResNet34), val IoU 0.79 on Building-change dataset |
+| Flight activity tracking | Real-time global flight state ingestion and site-association |
+| ADS-B integration | Live aircraft positions via OpenSky Network API |
+| Aircraft classification | ConvNeXt Small architecture, 100 fine-grained aircraft types |
 | Activity baselines | Per-site temporal baselines with anomaly scoring |
 | Intelligence feed | 10 RSS sources geo-tagged to monitored sites |
-| ADS-B integration | Live aircraft positions via OpenSky Network |
 | Operations dashboard | Global map, site detail, event feed, intel correlation |
 | Alert levels | NORMAL / ELEVATED (1.5x baseline) / ANOMALOUS (2x baseline) |
 
@@ -116,6 +129,38 @@ Sentinel-2 STAC (Copernicus)
 
 ## Quick Start
 
+### Local Development
+
+Prerequisites: Python 3.10+, Node.js 20+, PostgreSQL 16 + PostGIS
+
+Database only (Docker):
+```bash
+docker compose up -d db
+```
+
+Backend:
+```bash
+cd backend
+pip install -r requirements.txt
+cp .env.example .env
+alembic upgrade head
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Frontend:
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Seed demo data:
+```bash
+python scripts/seed_demo_data.py
+```
+
+### Docker Deployment
+
 Prerequisites: Docker, Docker Compose
 
 ```text
@@ -169,9 +214,10 @@ Demo mode (populates dashboard with realistic data):
 
 ## Model Performance
 
-| Model | Architecture | Dataset | Val IoU | Test IoU |
+| Model | Architecture | Dataset | Metric 1 | Metric 2 |
 |---|---|---|---|---|
-| Change Detection | SiameseUNet | Building-change (1,134 pairs) | 0.7936 | 0.8243 |
+| Change Detection | SiameseUNet (ResNet34) | Building-change (WHU-style) | 0.7936 Val IoU | 47 Epochs |
+| Aircraft Classification | ConvNeXt Small | FGVC Aircraft (100 classes) | 72.5% Val Top-1 | 72.0% Val Macro F1 |
 
 ---
 
@@ -184,6 +230,15 @@ Minimum recommended specification:
 - 8 GB RAM (16 GB recommended for ML inference)
 - 50 GB storage
 - Ubuntu 22.04 LTS or Windows Server 2022
+
+### Cloud Deployment (No VPS Required)
+
+The system can be deployed across free/low-cost cloud services:
+- **Database**: Supabase (PostGIS enabled, free tier)
+- **Backend**: Render ($7/mo, required for ONNX inference RAM)
+- **Frontend**: Vercel (free tier, zero-config Next.js)
+
+Set DATABASE_URL to your Supabase connection string in Render's environment variables.
 
 ---
 
@@ -212,6 +267,16 @@ scripts/
 
 docker-compose.yml    Full stack deployment
 ```
+
+---
+
+## Known Limitations
+
+- **Sentinel-2 pipeline latency**: 24-48 hour delay from satellite pass to processed alert is inherent to the Sentinel-2 pipeline
+- **Aircraft classifier training domain**: Model trained on oblique aviation photography; confidence scores are lower on nadir satellite imagery.
+- **YOLO detector**: Multi-aircraft detection endpoint exists but detector artifact not yet packaged for production.
+- **Anomaly baseline**: Requires minimum 3 days of historical data per site before relative scoring activates.
+- **Intel geo-tagging**: Matches approximately 25% of ingested articles to specific sites.
 
 ---
 

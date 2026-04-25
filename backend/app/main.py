@@ -9,8 +9,10 @@ from pathlib import Path
 import yaml
 
 repo_root = Path(__file__).resolve().parents[2]
-if str(repo_root) not in sys.path:
-    sys.path.insert(0, str(repo_root))
+ml_core_root = repo_root / "ml_core"
+for path in (str(repo_root), str(ml_core_root)):
+    if path not in sys.path:
+        sys.path.insert(0, path)
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -22,8 +24,7 @@ from app.database.crud import backfill_aoi_daily_counts
 from app.database.models import AoiDailyCount
 from app.database.session import init_db, async_session
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from pipeline.stac_watcher import run_watcher
-from app.services.activity_service import aggregate_aircraft_activity
+from services.flight_feed import fetch_flights_for_sites
 from services.intel_feed import fetch_and_store_articles, retag_existing_articles
 
 logger = logging.getLogger(__name__)
@@ -128,21 +129,38 @@ def create_app() -> FastAPI:
                     logger.info("Backfilled %s aoi_daily_count rows", backfilled)
         except Exception as exc:
             logger.warning("AOI daily count backfill skipped due to error: %s", exc)
-        try:
-            async with async_session() as session:
-                stored = await fetch_and_store_articles(session)
-                logger.info("Intel feed: stored %s new articles", stored)
-                retagged = await retag_existing_articles(session)
-                logger.info("Intel re-tagged %s existing articles", retagged)
-        except Exception as exc:
-            logger.warning("Intel feed startup fetch skipped due to error: %s", exc)
+        if settings.enable_intel_fetch_on_startup:
+            try:
+                async with async_session() as session:
+                    stored = await fetch_and_store_articles(session)
+                    logger.info("Intel feed: stored %s new articles", stored)
+                    retagged = await retag_existing_articles(session)
+                    logger.info("Intel re-tagged %s existing articles", retagged)
+            except Exception as exc:
+                logger.warning("Intel feed startup fetch skipped due to error: %s", exc)
+        else:
+            logger.info("Intel feed startup fetch disabled")
+        if settings.enable_flight_fetch_on_startup:
+            try:
+                async with async_session() as session:
+                    stored = await fetch_flights_for_sites(session)
+                    logger.info("Flight feed: stored %d states", stored)
+                    await session.commit()
+            except Exception as exc:
+                logger.warning("Flight feed startup failed: %s", exc)
+        else:
+            logger.info("Flight feed startup fetch disabled")
         scheduler = AsyncIOScheduler()
         app.state.scheduler = scheduler
 
         async def stac_job():
+            from pipeline.stac_watcher import run_watcher
+
             await run_watcher()
 
         async def activity_job():
+            from app.services.activity_service import aggregate_aircraft_activity
+
             async with async_session() as session:
                 await aggregate_aircraft_activity(
                     session,
@@ -161,6 +179,15 @@ def create_app() -> FastAPI:
                     logger.info("Intel re-tagged %s existing articles", retagged)
             except Exception as exc:
                 logger.warning("Intel feed scheduled fetch skipped due to error: %s", exc)
+
+        async def flight_feed_job():
+            try:
+                async with async_session() as session:
+                    stored = await fetch_flights_for_sites(session)
+                    logger.info("Flight feed: stored %d states", stored)
+                    await session.commit()
+            except Exception as exc:
+                logger.warning("Flight feed scheduled fetch skipped due to error: %s", exc)
 
         if settings.enable_stac_watcher:
             scheduler.add_job(
@@ -183,6 +210,13 @@ def create_app() -> FastAPI:
             "interval",
             minutes=30,
             id="intel_feed_fetch",
+            max_instances=1,
+        )
+        scheduler.add_job(
+            flight_feed_job,
+            "interval",
+            minutes=5,
+            id="flight_feed_fetch",
             max_instances=1,
         )
         scheduler.start()

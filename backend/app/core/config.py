@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+DEFAULT_BACKEND_PYTHON = str(
+    (Path(__file__).resolve().parents[3] / ".venv" / "Scripts" / "python.exe")
+)
 
 
 class Settings(BaseSettings):
@@ -92,6 +97,16 @@ class Settings(BaseSettings):
         alias="ENABLE_ACTIVITY_AGGREGATOR",
         description="Enable aircraft activity aggregation job.",
     )
+    enable_intel_fetch_on_startup: bool = Field(
+        default=True,
+        alias="ENABLE_INTEL_FETCH_ON_STARTUP",
+        description="Run the external intel RSS fetch once during API startup.",
+    )
+    enable_flight_fetch_on_startup: bool = Field(
+        default=True,
+        alias="ENABLE_FLIGHT_FETCH_ON_STARTUP",
+        description="Run the external flight feed fetch once during API startup.",
+    )
     activity_window_hours: int = Field(
         default=24,
         alias="ACTIVITY_WINDOW_HOURS",
@@ -122,7 +137,7 @@ class Settings(BaseSettings):
 
     # Runtime Python enforcement
     backend_python_executable: str = Field(
-        default="C:/mlenv/venv/Scripts/python.exe",
+        default=DEFAULT_BACKEND_PYTHON,
         alias="BACKEND_PYTHON_EXECUTABLE",
         description="Expected Python executable path for backend startup on Windows.",
     )

@@ -149,6 +149,41 @@ class IntelArticle(Base):
     summary = Column(Text, nullable=True)
 
 
+class FlightState(Base):
+    __tablename__ = "flight_states"
+    __table_args__ = (
+        UniqueConstraint("icao24", "timestamp", name="uq_flight_states_icao24_timestamp"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    icao24 = Column(String(16), nullable=False, index=True)
+    callsign = Column(String(32), nullable=True)
+    origin_country = Column(String(64), nullable=True)
+    lat = Column(Float, nullable=True)
+    lon = Column(Float, nullable=True)
+    altitude_m = Column(Float, nullable=True)
+    velocity_ms = Column(Float, nullable=True)
+    heading = Column(Float, nullable=True)
+    on_ground = Column(Boolean, nullable=False, default=False, server_default="false")
+    site_id = Column(String(64), nullable=True, index=True)
+    timestamp = Column(DateTime(timezone=True), nullable=False, index=True)
+    fetched_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class FlightDailyCount(Base):
+    __tablename__ = "flight_daily_counts"
+    __table_args__ = (
+        UniqueConstraint("site_id", "date", name="uq_flight_daily_counts_site_date"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    site_id = Column(String(64), nullable=False, index=True)
+    date = Column(Date, nullable=False)
+    count = Column(Integer, nullable=False, default=0, server_default="0")
+    unique_aircraft = Column(Integer, nullable=False, default=0, server_default="0")
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class IngestionState(Base):
     __tablename__ = "ingestion_state"
 

@@ -88,7 +88,7 @@ export const Topbar: React.FC<Props> = ({
                         aria-label="Select country"
                     >
                         {options.map((opt) => (
-                            <option key={opt} value={opt}>
+                            <option key={opt} value={opt} style={{ color: "#000000" }}>
                                 {opt}
                             </option>
                         ))}

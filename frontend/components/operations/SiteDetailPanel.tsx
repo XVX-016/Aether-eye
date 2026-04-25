@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { fetchSiteIntel, fetchSiteStatus } from "@/lib/api";
-import type { SiteIntelResponse, SiteProperties, SiteStatus } from "@/types/operations";
+import { fetchSiteFlights, fetchSiteIntel, fetchSiteStatus } from "@/lib/api";
+import type { FlightActivity, SiteIntelResponse, SiteProperties, SiteStatus } from "@/types/operations";
 
 type Props = {
     site: SiteProperties | null;
@@ -50,6 +50,8 @@ export function SiteDetailPanel({ site, onClose }: Props) {
     const [statusRows, setStatusRows] = useState<SiteStatus[]>([]);
     const [intel, setIntel] = useState<SiteIntelResponse | null>(null);
     const [intelLoading, setIntelLoading] = useState(false);
+    const [flights, setFlights] = useState<FlightActivity | null>(null);
+    const [flightLoading, setFlightLoading] = useState(false);
 
     useEffect(() => {
         if (!site) {
@@ -58,23 +60,35 @@ export function SiteDetailPanel({ site, onClose }: Props) {
         let alive = true;
         const load = async () => {
             setIntelLoading(true);
+            setFlightLoading(true);
             try {
-                const [statusData, intelData] = await Promise.all([
+                const [statusData, intelData, flightData] = await Promise.all([
                     fetchSiteStatus(30),
                     fetchSiteIntel(site.id, 48),
+                    fetchSiteFlights(site.id, 24),
                 ]);
                 if (alive) {
                     setStatusRows(statusData);
                     setIntel(intelData);
+                    setFlights(flightData);
                 }
             } catch (error) {
                 console.error("Failed to load site detail", error);
                 if (alive) {
                     setIntel({ site_id: site.id, articles: [], hours: 48 });
+                    setFlights({
+                        site_id: site.id,
+                        recent_count: 0,
+                        unique_aircraft: 0,
+                        on_ground_count: 0,
+                        airborne_count: 0,
+                        latest_states: [],
+                    });
                 }
             } finally {
                 if (alive) {
                     setIntelLoading(false);
+                    setFlightLoading(false);
                 }
             }
         };
@@ -128,6 +142,93 @@ export function SiteDetailPanel({ site, onClose }: Props) {
                         </span>
                     </div>
                 </div>
+            </div>
+
+            <div className="glass-panel" style={{ padding: "0.9rem", marginBottom: "1rem", borderRadius: 2 }}>
+                <div className="ops-kicker mono">Flight Activity</div>
+                {flightLoading ? (
+                    <div className="ops-stat-pulse" style={{ marginTop: "0.75rem" }}>
+                        <div style={{ width: "35%", height: "0.7rem", borderRadius: 2, background: "rgba(148, 163, 184, 0.18)", marginBottom: "0.7rem" }} />
+                        <div style={{ width: "22%", height: "1.6rem", borderRadius: 2, background: "rgba(148, 163, 184, 0.16)", marginBottom: "0.85rem" }} />
+                        <div style={{ width: "100%", height: "2.8rem", borderRadius: 2, background: "rgba(148, 163, 184, 0.12)", marginBottom: "0.85rem" }} />
+                        <div style={{ width: "100%", height: "4.6rem", borderRadius: 2, background: "rgba(148, 163, 184, 0.1)" }} />
+                    </div>
+                ) : !flights || flights.recent_count === 0 ? (
+                    <div style={{ marginTop: "0.75rem", color: "var(--text-muted)" }}>
+                        No flight activity detected in last 24h
+                    </div>
+                ) : (
+                    <div style={{ marginTop: "0.75rem" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "end", marginBottom: "0.75rem", gap: "0.75rem" }}>
+                            <div>
+                                <div className="mono" style={{ fontSize: "0.65rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Recent Flights</div>
+                                <div style={{ fontSize: "1.5rem", fontWeight: 700, lineHeight: 1.1 }}>{flights.recent_count}</div>
+                            </div>
+                            {status?.flight_baseline != null && status.flight_baseline > 0 ? (
+                                <div style={{ textAlign: "right" }}>
+                                    <div className="mono" style={{ fontSize: "0.65rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em" }}>
+                                        30-Day Avg: {status.flight_baseline.toFixed(1)}
+                                    </div>
+                                    <span className="mono" style={{ display: "inline-block", marginTop: "0.3rem", textTransform: "uppercase", ...statusStyle(status.flight_anomaly ?? "normal") }}>
+                                        {status.flight_anomaly ?? "normal"}
+                                    </span>
+                                </div>
+                            ) : null}
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "0.75rem", marginBottom: "0.9rem" }}>
+                            <div>
+                                <div className="mono" style={{ fontSize: "0.62rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Unique Aircraft</div>
+                                <div style={{ fontWeight: 700, marginTop: "0.18rem" }}>{flights.unique_aircraft}</div>
+                            </div>
+                            <div>
+                                <div className="mono" style={{ fontSize: "0.62rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em" }}>On Ground</div>
+                                <div style={{ fontWeight: 700, marginTop: "0.18rem" }}>{flights.on_ground_count}</div>
+                            </div>
+                            <div>
+                                <div className="mono" style={{ fontSize: "0.62rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Airborne</div>
+                                <div style={{ fontWeight: 700, marginTop: "0.18rem" }}>{flights.airborne_count}</div>
+                            </div>
+                        </div>
+
+                        <div style={{ overflowX: "auto" }}>
+                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.75rem" }}>
+                                <thead>
+                                    <tr className="mono" style={{ color: "var(--text-muted)", textTransform: "uppercase", fontSize: "0.58rem", letterSpacing: "0.12em" }}>
+                                        <th style={{ textAlign: "left", padding: "0.35rem 0.25rem" }}>ICAO24</th>
+                                        <th style={{ textAlign: "left", padding: "0.35rem 0.25rem" }}>Callsign</th>
+                                        <th style={{ textAlign: "left", padding: "0.35rem 0.25rem" }}>Country</th>
+                                        <th style={{ textAlign: "right", padding: "0.35rem 0.25rem" }}>Alt</th>
+                                        <th style={{ textAlign: "right", padding: "0.35rem 0.25rem" }}>Speed</th>
+                                        <th style={{ textAlign: "right", padding: "0.35rem 0.25rem" }}>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {flights.latest_states.slice(0, 5).map((flight) => (
+                                        <tr
+                                            key={`${flight.icao24}-${flight.timestamp}`}
+                                            style={{
+                                                borderTop: "1px solid rgba(255,255,255,0.06)",
+                                                color: flight.on_ground ? "rgba(148, 163, 184, 0.72)" : "var(--text-primary)",
+                                            }}
+                                        >
+                                            <td className="mono" style={{ padding: "0.45rem 0.25rem" }}>{flight.icao24.toUpperCase()}</td>
+                                            <td className="mono" style={{ padding: "0.45rem 0.25rem" }}>{flight.callsign?.trim() || "--"}</td>
+                                            <td style={{ padding: "0.45rem 0.25rem" }}>{flight.origin_country || "--"}</td>
+                                            <td style={{ padding: "0.45rem 0.25rem", textAlign: "right" }}>{flight.altitude_m != null ? `${Math.round(flight.altitude_m)}m` : "--"}</td>
+                                            <td style={{ padding: "0.45rem 0.25rem", textAlign: "right" }}>{flight.velocity_ms != null ? `${Math.round(flight.velocity_ms)}m/s` : "--"}</td>
+                                            <td style={{ padding: "0.45rem 0.25rem", textAlign: "right" }}>
+                                                <span className="mono" style={{ display: "inline-block", textTransform: "uppercase", ...statusStyle(flight.on_ground ? "normal" : "elevated") }}>
+                                                    {flight.on_ground ? "Ground" : "Airborne"}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
             </div>
 
             <div className="glass-panel" style={{ padding: "0.9rem", marginBottom: "1rem", borderRadius: 2 }}>
@@ -217,7 +318,7 @@ export function SiteDetailPanel({ site, onClose }: Props) {
 
             <div className="glass-panel" style={{ padding: "0.9rem", borderRadius: 2 }}>
                 <div className="ops-kicker mono">Detection Timeline</div>
-                <div style={{ marginTop: "0.65rem", color: "var(--text-muted)" }}>Detection history - coming in Stage 5.3</div>
+                <div style={{ marginTop: "0.65rem", color: "var(--text-muted)" }}>Detection history will populate as satellite scenes are processed for this site.</div>
             </div>
         </aside>
     );

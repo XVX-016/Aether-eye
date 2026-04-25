@@ -1,154 +1,78 @@
 # Aether-Eye: Model Training & Intelligence Pipelines
 
-This document provides a comprehensive overview of the model architectures, intelligence pipelines, and geospatial data management for the Aether-Eye platform.
+This document provides a technical overview of the model architectures, training workflows, and inference pipelines implemented in the Aether-Eye platform.
 
-## 1. Project Vision
+## 1. Aircraft Classification
 
-Aether-Eye is a professional-grade satellite intelligence platform designed to transform raw imagery into actionable insights. It mirrors the capabilities of industry leaders like Maxar and Palantir by integrating detection, classification, and change analysis into a single geospatial pipeline.
+The aircraft classification module provides fine-grained identification of aircraft variants from image chips.
 
-This project is moving toward a global monitoring and scanning intelligence system by unifying aircraft detection/classification with multi-temporal change detection, and exposing the pipeline through production API services.
-
-### Core Intelligence Capabilities:
-- **Aircraft Intelligence**: A multi-stage pipeline that detects aircraft and classifies their specific models (variants).
-- **Change Intelligence**: Temporal analysis of building and infrastructure changes between two satellite captures.
-- **Geospatial & Timeline Awareness**: Detections are mapped to GPS coordinates and tracked over time to identify events (arrivals, departures, construction).
-
----
-
-## 2. Integrated Intelligence Pipelines
-
-### 2.1 Aircraft Intelligence Pipeline (Stage 1 & 2)
-The system uses a sequential flow to provide high-precision identification:
-
-1.  **Detection (YOLOv8)**: Scans the satellite imagery for aircraft bounding boxes.
-2.  **Cropping**: Extracts the region of interest (ROI) around the aircraft.
-3.  **Classification (ViT)**: Refines the detection by identifying the specific aircraft type (e.g., F-16, Boeing 737).
-
-**Example Output:**
-- `Detected Aircraft: 2`
-- `[1] F-16 Fighting Falcon (Conf: 0.92)`
-- `[2] Boeing 737 (Conf: 0.87)`
-
-### 2.2 Change Intelligence Pipeline
-A dual-stream approach for monitoring structural evolution:
-
-1.  **Dual Input**: Accepts "Before" and "After" status imagery.
-2.  **Siamese Analysis**: Extracts features from both and identifies pixel-level differences.
-3.  **Impact Quantification**: Calculates changed area (%) and identifies affected structures.
-
-### 2.3 Intelligence Orchestration (Operational)
-The backend now includes an asynchronous intelligence job runner that executes:
-- **Change Detection (Siamese U-Net ONNX)** on before/after imagery.
-- **Aircraft Detection (YOLOv8 ONNX)** on latest imagery.
-- **Optional Classification (ViT)** on detected aircraft crops.
-Results are stored as persistent intelligence events for the operations dashboard.
+- **Architecture**: `convnext_small` (via `timm`). This architecture was selected over ViT for its superior performance on smaller datasets and better convergence during fine-tuning.
+- **Dataset**: `FGVC Aircraft` (Fine-Grained Visual Classification). Contains 10,000 images of 100 aircraft variants.
+- **Training Metrics**: 
+    - **Top-1 Accuracy**: 72.5%
+    - **Macro F1-Score**: 72.0%
+    - (Verified from `experiments/aircraft/run_04_convnext_small/metrics.json`)
+- **Loss Function**: `CrossEntropyLoss` with Label Smoothing (0.1). During training, a custom `_weighted_soft_ce` is used to support Mixup and CutMix augmentations.
+- **Optimizer & Learning Rate**: `AdamW` with a base learning rate of `3e-4` (production) and weight decay of `0.05`.
+- **Classes**: 100 classes representing specific aircraft variants (e.g., `707-320`, `F-16A/B`, `Eurofighter Typhoon`).
+- **Explainability**: Implemented via **Grad-CAM** (`ml_core/aether_ml/explainability/grad_cam.py`). It generates heatmaps showing which regions of the aircraft (e.g., tail, wing configuration) the model focused on for its prediction.
+- **Friend/Foe Classification**: A rule-based system (`app/services/geopolitics.py`) that matches the aircraft's predicted origin country against a user-selected country. Relations are categorized as `FRIEND`, `FOE`, or `NEUTRAL` based on a predefined geopolitical alliance matrix.
 
 ---
 
-## 3. Model Architectures & Mathematical Formulations
+## 2. Change Detection
 
-### 3.1 Detection: YOLOv8
-- **Purpose**: Object detection (Aircraft, Small Objects).
-- **Datasets**: xView, DOTA.
-- **Key Formula**: **CIoU Loss** for bounding box regression.
-    $$L_{CIoU} = 1 - IoU + \frac{\rho^2(b, b^{gt})}{c^2} + \alpha v$$
+The change detection module identifies structural and environmental changes between two temporal satellite captures.
 
-### 3.2 Classification: Vision Transformer (ViT) / ResNet
-- **Purpose**: Fine-grained variant identification.
-- **Datasets**: FGVC Aircraft, Stanford Aircraft, Military Aircraft.
-- **Key Formula**: **Softmax Cross-Entropy** with Label Smoothing.
-    $$L = -\sum_{i=1}^{C} [y_i(1-\alpha) + \frac{\alpha}{C}] \log(\hat{y}_i)$$
-
-### 3.3 Change Detection: Siamese U-Net
-- **Purpose**: Pixel-level change mapping.
-- **Datasets**: LEVIR-CD, WHU-CD, SpaceNet-7.
-- **Key Formula**: **Combined BCE-Dice Loss**.
-    $$L_{Total} = 0.5 \cdot L_{BCE} + 0.5 \cdot L_{Dice}$$
+- **Architecture**: `SiameseUNet` with a **ResNet34** backbone. It uses a dual-branch weight-sharing encoder to extract features from "Before" and "After" images. Feature maps are fused via absolute differencing at multiple scales before being passed to a U-Net decoder.
+- **Dataset**: `Building-change (WHU-style)`. Focused on structural evolution and building footprints.
+- **Metrics**: **0.7936 Val IoU**. (Verified from `ml_core/artifacts/change_model_v2/model_card.json`).
+- **Loss Function**: **Hybrid Tversky Loss** (`0.4 * BCE + 0.6 * FocalTversky`). This combination handles the significant class imbalance (change vs. no-change) better than standard BCE-Dice.
+- **Training Split**: 
+    - Train: 1,134 samples
+    - Validation: 126 samples
+    - Test: 690 samples
+- **Ablation Findings**: Data augmentation including `ColorJitter` was found to be detrimental to change detection performance as it introduces artificial radiometric differences that the model confuses with actual physical changes. Production training uses only geometric transforms (Rotate, Flip, Crop).
+- **ONNX Export**: The model is exported to ONNX (`change_model_v2.onnx`, ~110MB) for production inference, adapted via a `ConcatInputWrapper` to accept a single 6-channel input (concatenated Before/After images).
 
 ---
 
-## 4. Dataset Management & Repository Structure
+## 3. What Is Not Yet Built (Implementation Gaps)
 
-### 4.1 Professional Dataset Mapping
-| Model | Dataset | Primary Usage |
-| :--- | :--- | :--- |
-| **YOLOv8** | xView / DOTA | Aircraft & Small Object Detection |
-| **ViT** | FGVC / Military Aircraft | Fine-grained Classification |
-| **Siamese CNN** | LEVIR-CD / WHU-CD | Urban Change Detection |
-| **SegFormer** | SpaceNet | Infrastructure / Building Mapping |
+- **YOLO Detector Artifact**: While training scripts for YOLOv8 exist (`ml_core/aether_ml/training/yolov8_aircraft.py`), a production-ready weights artifact for wide-area satellite detection has not yet been packaged.
+- **Infrastructure Segmentation**: Models for segmenting runways, hangars, or taxiways (e.g., SegFormer) are not currently implemented.
+- **End-to-End Pipeline**: The multi-stage `Detect -> Crop -> Classify` workflow is not yet fully automated in the backend; the classifier currently operates on manually provided or uploaded image chips.
+- **Military Specifics**: Fine-grained military variants are limited to what is available in the FGVC dataset; coverage for specialized ISR or electronic warfare platforms is currently missing.
 
-### 4.2 Recommended Repository Structure
-```text
-aether-eye/
-├── ml_core/
-│   ├── detection/          # YOLOv8 (Aircraft, Ships)
-│   ├── classification/     # ViT (Aircraft variants)
-│   ├── change_detection/   # Siamese Models
-│   └── preprocessing/      # Tiling & Cropping Logic
-├── data/
-│   ├── raw/                # Original downloads (unmodified)
-│   └── processed/          # YOLO/ImageFolder formatted data
-├── models/                 # Production weights (.pt, .onnx)
-├── scripts/                # Data conversion & training entry points
-└── web-app/                # Next.js Dashboard
+---
+
+## 4. Pipeline Architecture
+
+- **Satellite Integration**: The `stac_watcher` identifies new Sentinel-2 scenes, which are processed by the `scene_processor`. If a "Before" scene exists for the same AOI, the `change_service` triggers the `ChangeDetectionOnnxPipeline`.
+- **API Inference**: The backend exposes endpoints like `/predict/aircraft` which accept image uploads and route them to the appropriate ML service.
+- **Inference Engine**: All production inference is performed via **ONNX Runtime** (`onnxruntime-gpu` or `onnxruntime`).
+- **Device Detection**: The system automatically detects CUDA availability. If a GPU is present, it uses `CUDAExecutionProvider`; otherwise, it falls back to `CPUExecutionProvider`.
+
+---
+
+## 5. Training Commands
+
+### Change Detection
+To retrain the change detection model using the production configuration:
+```bash
+python run_training_production.py
 ```
+Checkpoints and logs are saved to `runs/siamese_unet_change/`.
 
----
+### Aircraft Classification
+To retrain the aircraft classifier:
+```bash
+python ml_core/classification/vit_aircraft/train_aircraft_classification.py --data-root ml_core/DATASET/Aircraft
+```
+Checkpoints are saved to `experiments/aircraft/`.
 
-## 5. Operations & Geospatial Intelligence
-
-### 5.1 Geospatial Layering
-Real satellite intelligence requires mapping pixel detections to coordinates:
-- **Tiling**: Large satellite images (e.g., 12k x 12k) are processed in 512x512 tiles for inference.
-- **Coordinate Mapping**: Detections are projected from image space to Latitude/Longitude for mapping in the **Operations Dashboard**.
-
-### 5.2 Event Tracking
-The system moves beyond raw detections to **Intelligence Events**:
-- **Arrivals/Departures**: Tracked via temporal analysis.
-- **Structural Construction**: Quantified as `Change %` on the Intelligence Map.
-
----
-
-## 6. Training Pipeline Workflow
-
-1.  **Acquisition**: `download_kaggle_satellite_datasets.py` (SpaceNet, DOTA).
-2.  **Preparation**: `prepare_stanford_classification_dataset.py` (Organizes image folders).
-3.  **Conversion**: `convert_stanford_to_yolov8.py` (Creates detection labels).
-4.  **Training**: Run in order: **Detection** → **Classification** → **Change Detection**.
-5.  **Export**: `export_aircraft_detector_onnx.py` for edge/web deployment.
-
----
-
-## 7. Current Status & Implementation Roadmap
-
-This section tracks the progress toward the full **Aether-Eye Product Vision**.
-
-### 7.1 Implemented Features (Completed)
-- **Model Training Pipelines**:
-    - [x] **Aircraft Classification**: Full pipeline for FGVC/Stanford Aircraft via ViT/ResNet.
-    - [x] **Aircraft Detection**: Training scripts for YOLOv8 (xView subset).
-    - [x] **Change Detection**: Core Siamese U-Net implementation and trainer.
-- **Dataset Utilities**:
-    - [x] **Automated Data Acquisition**: Kaggle download script for SpaceNet and DOTA.
-    - [x] **Data Conversion**: xView/Stanford to YOLOv8 label converters.
-- **Deployment**:
-    - [x] **Model Export**: ONNX export for edge/web integration.
-    - [x] **Backend Intelligence Job**: Asynchronous pipeline that runs change detection + aircraft detection and persists events.
-
-### 7.2 Model Training Status (In-Progress/Pending)
-- **[PENDING] Multi-Dataset Training**:
-    - Training YOLOv8 on the combined **xView + DOTA** large-scale datasets.
-    - Fine-tuning ViT on the **Military Aircraft Kaggle** dataset for defense-specific variants.
-- **[PENDING] High-Res Change Models**:
-    - Training Siamese CNN on **WHU-CD** for increased precision in structural analysis.
-- **[NEW] Infrastructure Mapping**:
-    - Training **SegFormer / UNet** on the **SpaceNet** dataset for runways and hangars.
-
-### 7.3 Implementation Gaps & Product Roadmap
-To reach "Intelligence Platform" status, the following components are currently pending:
-
-1.  **Multi-Stage Inference Pipeline**: Integrating `Detection -> Crop -> Classification` into a single automated service.
-2.  **Geospatial Tiling Service**: Logic for breaking down massive satellite imagery (e.g., 12k x 12k) into 512x512 tiles.
-3.  **Coordinate Projection Layer**: Mathematical logic to convert image $(x, y)$ coordinates to **Latitude/Longitude (GPS)**.
-4.  **Temporal Event Analysis**: Logic to correlate detections over time to identify "Arrival" or "Departure" events.
-5.  **Operations Dashboard**: Full Next.js implementation of the **Interactive Intelligence Map** with MapLibre.
+### Export to ONNX
+After training, models can be exported for production:
+```bash
+python ml_core/change_detection/siamese_unet/export_change_onnx.py --checkpoint ml_core/artifacts/change_model_v2/change_model_v2.pt --output change_model_v2.onnx
+```

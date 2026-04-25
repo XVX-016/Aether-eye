@@ -37,6 +37,32 @@ class SiteStatusResponse(BaseModel):
     baseline: float | None = None
     anomaly_factor: float | None = None
     status: str
+    today_flights: int = 0
+    flight_baseline: float = 0.0
+    flight_anomaly: str = "normal"
+
+
+class FlightStateResponse(BaseModel):
+    site_id: str | None = None
+    icao24: str
+    callsign: str | None = None
+    origin_country: str | None = None
+    lat: float | None = None
+    lon: float | None = None
+    altitude_m: float | None = None
+    velocity_ms: float | None = None
+    heading: float | None = None
+    on_ground: bool = False
+    timestamp: datetime
+
+
+class FlightActivityResponse(BaseModel):
+    site_id: str
+    recent_count: int
+    unique_aircraft: int
+    on_ground_count: int
+    airborne_count: int
+    latest_states: list[FlightStateResponse]
 
 
 class IntelArticleResponse(BaseModel):
@@ -45,4 +71,4 @@ class IntelArticleResponse(BaseModel):
     source: str | None = None
     source_tier: int
     published_at: datetime | None = None
-    site_id: str
+    site_id: str | None = None

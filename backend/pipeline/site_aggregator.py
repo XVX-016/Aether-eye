@@ -6,11 +6,13 @@ from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import desc, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.crud import get_aoi_baseline, increment_aoi_daily_count
-from app.database.models import AoiDailyCount
+from app.database.models import AoiDailyCount, FlightDailyCount
 from pipeline.site_registry import get_site_for_point, load_sites
+from services.flight_feed import get_flight_baseline
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +79,22 @@ async def get_site_status(
         )
         today_count = int(today_result.scalar() or 0)
         anomaly_factor = (today_count / baseline) if baseline > 0 else None
+        try:
+            flight_baseline = await get_flight_baseline(db, site_id, lookback_days=lookback_days)
+            flight_result = await db.execute(
+                select(FlightDailyCount.unique_aircraft)
+                .where(FlightDailyCount.site_id == site_id)
+                .where(FlightDailyCount.date == today)
+                .order_by(desc(FlightDailyCount.updated_at))
+                .limit(1)
+            )
+            today_flights = int(flight_result.scalar() or 0)
+        except SQLAlchemyError as exc:
+            await db.rollback()
+            logger.warning("Flight status fallback for %s due to database error: %s", site_id, exc)
+            flight_baseline = 0.0
+            today_flights = 0
+        flight_anomaly_factor = (today_flights / flight_baseline) if flight_baseline > 0 else None
 
         if anomaly_factor is not None and anomaly_factor >= 2.0:
             status = "anomalous"
@@ -84,6 +102,13 @@ async def get_site_status(
             status = "elevated"
         else:
             status = "normal"
+
+        if flight_anomaly_factor is not None and flight_anomaly_factor >= 2.0:
+            flight_anomaly = "anomalous"
+        elif flight_anomaly_factor is not None and flight_anomaly_factor >= 1.5:
+            flight_anomaly = "elevated"
+        else:
+            flight_anomaly = "normal"
 
         statuses.append(
             {
@@ -96,6 +121,9 @@ async def get_site_status(
                 "baseline": baseline,
                 "anomaly_factor": anomaly_factor,
                 "status": status,
+                "today_flights": today_flights,
+                "flight_baseline": flight_baseline,
+                "flight_anomaly": flight_anomaly,
             }
         )
 
