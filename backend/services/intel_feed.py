@@ -32,21 +32,32 @@ RSS_SOURCES = [
     {"url": "https://theaviationist.com/feed", "source": "The Aviationist", "tier": 3},
     {"url": "https://www.navalnews.com/feed", "source": "Naval News", "tier": 3},
     {"url": "https://www.middleeasteye.net/rss", "source": "Middle East Eye", "tier": 2},
+    {"url": "https://www.defensenews.com/arc/outboundfeeds/rss/", "source": "Defense News", "tier": 2},
+    {"url": "https://www.janes.com/feeds/news", "source": "Janes Defense", "tier": 2},
+    {"url": "https://www.milavia.net/news/feed/", "source": "Milavia", "tier": 3},
+    {"url": "https://www.scramble.nl/rss.xml", "source": "Scramble Magazine", "tier": 3},
+    {"url": "https://english.alarabiya.net/rss.xml", "source": "Al Arabiya English", "tier": 2},
+    {"url": "https://www.timesofisrael.com/feed/", "source": "Times of Israel", "tier": 2},
+    {"url": "https://www.haaretz.com/cmlink/1.628765", "source": "Haaretz", "tier": 2},
+    {"url": "https://gulfnews.com/rss", "source": "Gulf News", "tier": 2},
+    {"url": "https://japannews.yomiuri.co.jp/feed/", "source": "Japan News", "tier": 2},
+    {"url": "https://www.stripes.com/arc/outboundfeeds/rss/", "source": "Stars and Stripes", "tier": 2},
+    {"url": "https://feeds.reuters.com/reuters/worldNews", "source": "Reuters World", "tier": 1},
 ]
 
 ALIASES: dict[str, list[str]] = {
     "al_udeid": ["al udeid", "centcom", "qatar air", "usaf qatar", "55th wing", "379th", "air operations center"],
     "al_dhafra": ["al dhafra", "uae air force", "abu dhabi air", "khalifa city", "barak missile"],
     "strait_hormuz_north": ["bandar abbas", "hormuz", "persian gulf blockade", "iriaf", "iranian navy", "irgc navy"],
-    "kadena": ["kadena", "okinawa base", "18th wing", "usaf japan", "ryukyu"],
-    "andersen_guam": ["andersen", "guam bomber", "usaf guam", "pacific strike", "b-52 pacific", "b-2 guam"],
+    "kadena": ["kadena", "okinawa base", "18th wing", "usaf japan", "ryukyu", "okinawa military", "us japan base", "pacaf", "pacific air forces", "18th wing", "marine corps air station futenma"],
+    "andersen_guam": ["andersen", "guam bomber", "usaf guam", "pacific strike", "b-52 pacific", "b-2 guam", "guam defense", "usaf pacific", "b-52 guam", "pacific bomber task force", "joint region marianas"],
     "ramstein": ["ramstein", "usafe", "air force europe", "kaiserslautern", "86th airlift"],
     "incirlik": ["incirlik", "turkey air base", "usaf turkey", "39th air base wing", "nato turkey"],
     "diego_garcia": ["diego garcia", "biot", "indian ocean base", "british indian ocean", "b-2 diego"],
     "al_asad": ["al asad", "al-asad", "anbar province base", "iraq air base", "ain al-asad"],
     "norfolk_naval": ["norfolk naval", "naval station norfolk", "carrier strike group norfolk", "2nd fleet"],
-    "pearl_harbor": ["pearl harbor", "joint base pearl", "pacific fleet", "indopacom"],
-    "changi_naval": ["changi naval", "singapore navy", "rsan changi", "strait of malacca base"],
+    "pearl_harbor": ["pearl harbor", "joint base pearl", "pacific fleet", "indopacom", "us pacific fleet", "hawaii military", "joint base pearl harbor", "uss ", "carrier strike group pacific"],
+    "changi_naval": ["changi naval", "singapore navy", "rsan changi", "strait of malacca base", "singapore strait", "malacca security", "rsn", "republic of singapore navy", "five power defence"],
     "rota_naval": ["naval station rota", "rota spain", "6th fleet", "destroyer squadron rota"],
     "aden_port": ["port of aden", "aden gulf", "houthi attack", "red sea shipping", "bab el-mandeb", "houthi drone", "houthi missile"],
     "jeddah_port": ["jeddah port", "saudi port", "red sea saudi"],
@@ -110,15 +121,21 @@ def _coerce_published(entry: Any) -> datetime | None:
     return None
 
 
+async def _check_connectivity(client: httpx.AsyncClient, url: str) -> bool:
+    try:
+        res = await client.get(url)
+        res.raise_for_status()
+        return True
+    except Exception:
+        return False
+
+
 async def fetch_and_store_articles(db: AsyncSession) -> int:
     total = 0
 
     async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-        try:
-            healthcheck = await client.get("https://feeds.bbci.co.uk/news/world/rss.xml")
-            healthcheck.raise_for_status()
-        except Exception:
-            logger.warning("Intel feed: network unreachable, skipping fetch")
+        if not await _check_connectivity(client, "https://feeds.reuters.com/reuters/worldNews"):
+            logger.warning("Intel feed: network unreachable, skipping")
             return 0
 
         for source in RSS_SOURCES:
