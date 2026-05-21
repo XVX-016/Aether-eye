@@ -69,3 +69,57 @@ class SiameseChangeConfig:
             use_resize_crop=self.use_resize_crop,
         )
 
+
+@dataclass
+class SiameseChangeConfigV3(SiameseChangeConfig):
+    root: Path = Path("data/processed/building_change_v2")
+    train_list: Path = Path("train_list.txt")
+    val_list: Path = Path("val_list.txt")
+    test_list: Path = Path("test_list.txt")
+    image_size: int = 256
+    batch_size: int = 4
+    num_workers: int = 0          # Windows safe
+    model_type: str = "siamese_unet_v2"   # use new CBAM model
+    epochs: int = 75
+    learning_rate: float = 5e-5   # lower LR for refined training
+    weight_decay: float = 1e-4
+    loss_name: str = "hybrid_tversky_boundary"
+    device: str = "cuda"
+    output_dir: Path = Path("runs/siamese_unet_v3")
+    save_best: bool = True
+    resume: bool = False
+    use_resize_crop: bool = False
+
+    def resolved(self) -> "SiameseChangeConfigV3":
+        resolved_root = Path(self.root).expanduser().resolve()
+        
+        # If lists are relative, resolve them against root
+        resolved_train = Path(self.train_list)
+        if not resolved_train.is_absolute():
+            resolved_train = resolved_root / resolved_train
+            
+        resolved_val = Path(self.val_list)
+        if not resolved_val.is_absolute():
+            resolved_val = resolved_root / resolved_val
+
+        return SiameseChangeConfigV3(
+            root=resolved_root,
+            train_list=resolved_train,
+            val_list=resolved_val,
+            test_list=self.test_list,
+            image_size=self.image_size,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            model_type=self.model_type,
+            epochs=self.epochs,
+            learning_rate=self.learning_rate,
+            weight_decay=self.weight_decay,
+            loss_name=self.loss_name,
+            device=self.device,
+            output_dir=self.output_dir.expanduser().resolve(),
+            save_best=self.save_best,
+            resume=self.resume,
+            use_resize_crop=self.use_resize_crop,
+        )
+
+

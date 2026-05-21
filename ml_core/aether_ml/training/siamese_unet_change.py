@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 from aether_ml.config import SiameseChangeConfig
 from aether_ml.datasets import MultiTemporalChangeDataset
-from aether_ml.evaluation.metrics import HybridLoss, HybridTverskyLoss
+from aether_ml.evaluation.metrics import HybridLoss, HybridTverskyLoss, HybridTverskyBoundaryLoss
 from aether_ml.models.factory import create_model
 
 import torchvision.transforms as T
@@ -278,6 +278,8 @@ def train_siamese_unet_change(cfg: SiameseChangeConfig) -> Dict[str, float]:
 
     if cfg.loss_name.lower() == "bce_dice":
         criterion = HybridLoss(bce_weight=0.4, dice_weight=0.6)
+    elif cfg.loss_name.lower() == "hybrid_tversky_boundary":
+        criterion = HybridTverskyBoundaryLoss(bce_weight=0.4, tversky_weight=0.6, alpha=0.3, beta=0.7, gamma=0.75)
     else:
         criterion = HybridTverskyLoss(bce_weight=0.4, tversky_weight=0.6, alpha=0.3, beta=0.7, gamma=0.75)
     optimizer = torch.optim.AdamW(
