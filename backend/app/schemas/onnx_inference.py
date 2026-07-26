@@ -27,6 +27,23 @@ class AircraftDetectionsResponse(BaseModel):
     )
 
 
+class BBoxDetection(BaseModel):
+    bbox: dict
+    detection_confidence: float
+    class_name: str
+    class_confidence: float
+    origin_country: str
+    friend_or_foe: str
+    crop_base64: str
+
+
+class DetectClassifyResponse(BaseModel):
+    detections: list[BBoxDetection]
+    annotated_image_base64: str
+    total_aircraft: int
+    model_used: str
+
+
 class ChangeDetectionResponse(BaseModel):
     change_score: float = Field(..., ge=0.0, le=1.0)
     regions: list[dict] | None = Field(

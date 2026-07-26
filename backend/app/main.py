@@ -106,7 +106,20 @@ def create_app() -> FastAPI:
         try:
             verify_change_model_assets()
             verify_aircraft_classifier()
-            return {"status": "ok", "change_model": "v2", "aircraft_classifier": "convnext_small_100cls"}
+            status = {
+                "status": "ok",
+                "change_model": "v2",
+                "aircraft_classifier": "convnext_small_100cls",
+            }
+            try:
+                from services.detection_service import get_detection_service
+
+                get_detection_service()
+                status["yolo_detector"] = "yolov8n"
+            except Exception as exc:
+                status["yolo_detector"] = f"error: {exc}"
+                status["status"] = "degraded"
+            return status
         except RuntimeError as exc:
             return JSONResponse(status_code=503, content={"status": "error", "detail": str(exc)})
 
@@ -118,6 +131,13 @@ def create_app() -> FastAPI:
             verify_aircraft_classifier()
         except Exception as exc:
             logger.warning("Aircraft classifier verification skipped due to error: %s", exc)
+        try:
+            from services.detection_service import get_detection_service
+
+            get_detection_service()
+            logger.info("YOLO detector loaded: yolov8n")
+        except Exception as exc:
+            logger.warning("YOLO detector load failed: %s", exc)
         try:
             async with async_session() as session:
                 existing_detection_count = await session.scalar(

@@ -52,6 +52,39 @@ export type AircraftGradCamResponse = {
     device_used?: string | null;
 };
 
+export type BBoxDetection = {
+    bbox: { x1: number; y1: number; x2: number; y2: number };
+    detection_confidence: number;
+    class_name: string;
+    class_confidence: number;
+    origin_country: string;
+    friend_or_foe: "FRIEND" | "FOE" | "NEUTRAL" | string;
+    crop_base64: string;
+};
+
+export type DetectClassifyResponse = {
+    detections: BBoxDetection[];
+    annotated_image_base64: string;
+    total_aircraft: number;
+    model_used: string;
+};
+
+export type VideoFrameResult = {
+    frame_number: number;
+    timestamp_sec: number;
+    detections?: BBoxDetection[];
+    annotated_frame_base64?: string;
+    total_aircraft?: number;
+    source_type?: string;
+    error?: string;
+};
+
+export type AircraftDetectVideoResponse = {
+    frames: VideoFrameResult[];
+    total_frames_processed: number;
+    source_type: string;
+};
+
 export type MainSection =
     | "aircraft-intelligence"
     | "aircraft-detection"

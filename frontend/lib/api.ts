@@ -2,9 +2,12 @@ import axios from "axios";
 import type {
     AircraftClassificationResponse,
     AircraftDetectionsResponse,
+    AircraftDetectVideoResponse,
     AircraftGradCamResponse,
     ChangeDetectionResponse,
     CountResponse,
+    DetectClassifyResponse,
+    VideoFrameResult,
 } from "./types";
 import type { FlightActivity, FlightState, IntelArticle, OperationsEvent, SiteGeoJson, SiteIntelResponse, SiteStatus } from "@/types/operations";
 
@@ -105,6 +108,106 @@ export async function runAircraftGradCam(file: File, country?: string) {
         [`/v1/aircraft-gradcam${countryParam}`],
         form,
     );
+}
+
+export async function runAircraftDetectClassify(file: File, country?: string) {
+    const form = new FormData();
+    form.append("image", file);
+    const countryParam = country ? `?country=${encodeURIComponent(country)}` : "";
+    return postMultipart<DetectClassifyResponse>(`/v1/aircraft-detect-classify${countryParam}`, form);
+}
+
+export async function runAircraftDetectVideo(
+    video: File,
+    country?: string,
+    confThreshold = 0.25,
+) {
+    const form = new FormData();
+    form.append("video", video);
+    const params = new URLSearchParams();
+    if (country) {
+        params.set("country", country);
+    }
+    params.set("conf_threshold", String(confThreshold));
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return postMultipart<AircraftDetectVideoResponse>(`/v1/aircraft-detect-video${query}`, form);
+}
+
+export async function streamAircraftDetect(
+    url: string,
+    options: {
+        country?: string;
+        confThreshold?: number;
+        maxFrames?: number;
+        signal?: AbortSignal;
+        onFrame: (frame: VideoFrameResult) => void;
+        onDone?: () => void;
+        onError?: (error: Error) => void;
+    },
+) {
+    const params = new URLSearchParams({ url });
+    if (options.country) {
+        params.set("country", options.country);
+    }
+    if (options.confThreshold != null) {
+        params.set("conf_threshold", String(options.confThreshold));
+    }
+    if (options.maxFrames != null) {
+        params.set("max_frames", String(options.maxFrames));
+    }
+
+    const response = await fetch(`/api/v1/aircraft-detect-stream?${params.toString()}`, {
+        method: "POST",
+        signal: options.signal,
+    });
+
+    if (!response.ok) {
+        const detail = await response.text();
+        throw new Error(detail || `Stream request failed (${response.status})`);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+        throw new Error("Stream response has no body.");
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+                break;
+            }
+            buffer += decoder.decode(value, { stream: true });
+
+            let boundary = buffer.indexOf("\n\n");
+            while (boundary !== -1) {
+                const chunk = buffer.slice(0, boundary);
+                buffer = buffer.slice(boundary + 2);
+
+                for (const line of chunk.split("\n")) {
+                    if (line.startsWith("data:")) {
+                        const payload = line.slice(5).trim();
+                        if (payload) {
+                            options.onFrame(JSON.parse(payload) as VideoFrameResult);
+                        }
+                    }
+                }
+                boundary = buffer.indexOf("\n\n");
+            }
+        }
+        options.onDone?.();
+    } catch (err) {
+        if (options.signal?.aborted) {
+            options.onDone?.();
+            return;
+        }
+        const error = err instanceof Error ? err : new Error("Stream failed.");
+        options.onError?.(error);
+        throw error;
+    }
 }
 
 export async function fetchImagePreview(file: File) {
