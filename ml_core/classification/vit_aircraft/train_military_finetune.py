@@ -1,5 +1,6 @@
 import json
 import sys
+import warnings
 from pathlib import Path
 
 import torch
@@ -29,7 +30,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 NUM_WORKERS = 0
 BATCH_SIZE = 16
 PHASE1_EPOCHS = 10
-PHASE2_EPOCHS = 30
+PHASE2_EPOCHS = 50
 IMG_SIZE = 224
 
 
@@ -114,6 +115,12 @@ def run_phase(model, train_loader, val_loader, optimizer, scheduler, epochs, pha
 
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--skip-phase1", action="store_true",
+        help="Skip Phase 1 and load existing best_head.pt checkpoint")
+    args = parser.parse_args()
+
     print(f"Device:  {DEVICE}")
     print(f"Dataset: {MILITARY_ROOT}")
 
@@ -135,7 +142,9 @@ def main():
     model = timm.create_model("convnext_small", pretrained=False, num_classes=train_ds.num_classes).to(DEVICE)
 
     if Path(CHECKPOINT_IN).exists():
-        ckpt = torch.load(CHECKPOINT_IN, map_location="cpu")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", FutureWarning)
+            ckpt = torch.load(CHECKPOINT_IN, map_location="cpu", weights_only=False)
         state = ckpt.get("model_state_dict", ckpt)
         filtered = {
             k: v
@@ -147,32 +156,67 @@ def main():
     else:
         print(f"Warning: checkpoint not found at {CHECKPOINT_IN}, training from scratch")
 
-    print("\n=== PHASE 1: Head-only (frozen backbone) ===")
-    for name, param in model.named_parameters():
-        param.requires_grad = any(x in name for x in ("head", "classifier", "fc"))
-    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"Trainable: {trainable:,}")
+    head_ckpt_path = Path(OUTPUT_DIR) / "best_head.pt"
 
-    opt1 = torch.optim.AdamW(
-        filter(lambda p: p.requires_grad, model.parameters()),
-        lr=1e-3,
-        weight_decay=1e-4,
+    if args.skip_phase1 and head_ckpt_path.exists():
+        print("Skipping Phase 1 — loading existing head checkpoint")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", FutureWarning)
+            ckpt_head = torch.load(head_ckpt_path, map_location=DEVICE, weights_only=False)
+        model.load_state_dict(ckpt_head["model_state_dict"])
+        best1 = ckpt_head.get("val_acc", 0.0)
+        print(f"Loaded Phase 1 best: {best1:.4f}")
+    else:
+        print("\n=== PHASE 1: Head-only (frozen backbone) ===")
+        for param in model.parameters():
+            param.requires_grad = False
+
+        for param in model.head.parameters():
+            param.requires_grad = True
+
+        trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        print(f"Trainable params (head only): {trainable:,}")
+
+        opt1 = torch.optim.AdamW(
+            model.head.parameters(),
+            lr=1e-3,
+            weight_decay=1e-4,
+        )
+        sched1 = torch.optim.lr_scheduler.CosineAnnealingLR(opt1, T_max=PHASE1_EPOCHS)
+        best1 = run_phase(model, train_loader, val_loader, opt1, sched1, PHASE1_EPOCHS, "head", OUTPUT_DIR)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", FutureWarning)
+            ckpt_head = torch.load(head_ckpt_path, map_location=DEVICE, weights_only=False)
+        model.load_state_dict(ckpt_head["model_state_dict"])
+
+    # Phase 2: full fine-tune with layer-wise LR decay
+    print("\n=== PHASE 2: Full fine-tuning (layer-wise LR) ===")
+    for p in model.parameters():
+        p.requires_grad = True
+
+    # Group parameters by depth with different learning rates
+    # backbone gets 10x lower LR than head
+    head_params = list(model.head.parameters())
+    head_ids = {id(p) for p in head_params}
+    backbone_params = [p for p in model.parameters() if id(p) not in head_ids]
+
+    param_groups = [
+        {"params": backbone_params, "lr": 5e-6},   # backbone: very low
+        {"params": head_params,     "lr": 5e-5},   # head: 10x higher
+    ]
+
+    opt2 = torch.optim.AdamW(param_groups, weight_decay=1e-4)
+    sched2 = torch.optim.lr_scheduler.CosineAnnealingLR(
+        opt2, T_max=PHASE2_EPOCHS, eta_min=1e-7
     )
-    sched1 = torch.optim.lr_scheduler.CosineAnnealingLR(opt1, T_max=PHASE1_EPOCHS)
-    best1 = run_phase(model, train_loader, val_loader, opt1, sched1, PHASE1_EPOCHS, "head", OUTPUT_DIR)
 
-    ckpt_head = torch.load(f"{OUTPUT_DIR}/best_head.pt", map_location=DEVICE)
-    model.load_state_dict(ckpt_head["model_state_dict"])
-
-    print("\n=== PHASE 2: Full fine-tuning ===")
-    for param in model.parameters():
-        param.requires_grad = True
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Trainable: {trainable:,}")
+    print(f"Backbone LR: 5e-6  Head LR: 5e-5")
 
-    opt2 = torch.optim.AdamW(model.parameters(), lr=5e-5, weight_decay=1e-4)
-    sched2 = torch.optim.lr_scheduler.CosineAnnealingLR(opt2, T_max=PHASE2_EPOCHS)
-    best2 = run_phase(model, train_loader, val_loader, opt2, sched2, PHASE2_EPOCHS, "full", OUTPUT_DIR)
+    best2 = run_phase(model, train_loader, val_loader,
+                      opt2, sched2, PHASE2_EPOCHS, "full", OUTPUT_DIR)
 
     metrics = {
         "military_classes": train_ds.classes,
