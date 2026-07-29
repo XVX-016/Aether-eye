@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -148,12 +149,32 @@ def _preprocess_imagenet_rgb(image_bgr: np.ndarray, image_size: int) -> np.ndarr
     return arr[None, ...].astype(np.float32)  # NCHW
 
 
+def _load_model_card_classes(model_path_str: str) -> tuple[list[str], dict[str, str]]:
+    p = Path(model_path_str)
+    card_path = p.parent / "model_card.json"
+    if card_path.is_file():
+        try:
+            card = json.loads(card_path.read_text(encoding="utf-8"))
+            classes = card.get("classes", [])
+            display_names = card.get("display_names", {})
+            return classes, display_names
+        except Exception:
+            pass
+    return [], {}
+
+
 def classify_aircraft_onnx(image_bgr: np.ndarray):
     from aether_ml import ViTClassificationResult
+    from app.services.geopolitics import get_origin_for_class
 
     cfg = get_aircraft_classifier_config()
     session = get_aircraft_classifier_onnx_session()
     torch_pipeline = get_aircraft_classifier()
+
+    # Prefer classes from model_card.json
+    classes, display_names = _load_model_card_classes(cfg.model_path)
+    if not classes:
+        classes = torch_pipeline.class_names
 
     inp = _preprocess_imagenet_rgb(image_bgr, cfg.image_size)
     input_name = session.get_inputs()[0].name
@@ -166,12 +187,15 @@ def classify_aircraft_onnx(image_bgr: np.ndarray):
 
     class_id = int(np.argmax(probs[0]))
     conf = float(probs[0, class_id])
-    class_name = (
-        torch_pipeline.class_names[class_id]
-        if 0 <= class_id < len(torch_pipeline.class_names)
+    raw_class_name = (
+        classes[class_id]
+        if 0 <= class_id < len(classes)
         else f"class_{class_id}"
     )
-    origin_country = torch_pipeline.class_to_country.get(class_name, "Unknown")
+    class_name = display_names.get(raw_class_name, raw_class_name)
+    origin_country = get_origin_for_class(raw_class_name)
+    if origin_country == "Unknown":
+        origin_country = get_origin_for_class(class_name)
 
     result = ViTClassificationResult(
         class_id=class_id,

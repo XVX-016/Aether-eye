@@ -1,6 +1,11 @@
-model_path: "ml_core/artifacts/aircraft_classifier_v1/aircraft_classifier_v1.pt"
-onnx_path: "ml_core/artifacts/aircraft_classifier_v1/aircraft_classifier_v1.onnx"
+# Active model - Military Aircraft Classifier v2
+model_path: "ml_core/artifacts/aircraft_classifier_v2/aircraft_classifier_v2.pt"
+onnx_path: "ml_core/artifacts/aircraft_classifier_v2/aircraft_classifier_v2.onnx"
 architecture: "convnext_small"
-num_classes: 100
+num_classes: 98
 image_size: 224
 normalization: "imagenet"
+
+# Fallback - FGVC v1 (100 classes, oblique photography)
+# fallback_onnx_path: "ml_core/artifacts/aircraft_classifier_v1/aircraft_classifier_v1.onnx"
+# fallback_num_classes: 100
