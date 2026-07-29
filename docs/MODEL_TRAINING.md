@@ -218,3 +218,27 @@ The `ml_core/DATASET/` directory contains the raw data used for model developmen
 *   **`Satellite-Change/train-vehicle`**
     *   **File Count**: Path initialized.
     *   **Status**: **Unused**. Holds vehicle detection footprints for future wide-area monitoring expansions.
+
+---
+
+## 3. Training Run History
+
+### Change Detection
+| Version | Dataset | Val IoU | Test IoU | Architecture | Notes |
+|---------|---------|---------|---------|--------------|-------|
+| v1 | Building-change (445 subset) | 0.21 | — | SiameseUNet | Reduced dataset, abandoned |
+| v2 | Building-change (1,134 pairs) | 0.7936 | 0.8243 | SiameseUNet | Current production |
+| v3 | Building-change v2 (1,260 pairs) | 0.7366 | pending | SiameseUNetV2+CBAM | Experimental, below v2 — continue training or rebalance boundary loss |
+
+### Aircraft Classification  
+| Version | Dataset | Val Acc | Classes | Architecture | Notes |
+|---------|---------|---------|---------|--------------|-------|
+| v1 | FGVC Aircraft | 72.5% Top-1 | 100 | ConvNeXt Small | Current production (oblique photography) |
+| v2 | Military Aircraft Dataset | 68.57% Top-1 | 98 | ConvNeXt Small (fine-tuned) | Final best val_acc 68.57% (Epoch 48), ONNX exported |
+
+### Key lessons learned
+- RandomResizedCrop breaks paired change detection (spatial alignment required)
+- Hybrid Tversky loss outperforms BCE-Dice for imbalanced change masks
+- Layer-wise LR decay essential for Phase 2 fine-tuning (10x lower LR for backbone vs head)
+- Head-only Phase 1 with frozen backbone is critical before full fine-tune
+- Military aircraft dataset has 98 classes vs FGVC's 100 — not directly compatible

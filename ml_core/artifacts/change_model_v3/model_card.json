@@ -1,0 +1,15 @@
+{
+  "model": "SiameseUNetV2",
+  "version": "v3",
+  "checkpoint": "ml_core/artifacts/change_model_v3/change_model_v3.pt",
+  "onnx": "ml_core/artifacts/change_model_v3/change_model_v3.onnx",
+  "input_format": "[B, 6, H, W] - before(3ch) + after(3ch) concatenated",
+  "dataset": "Building-change v2 (expanded)",
+  "architecture_notes": "CBAM attention + boundary loss",
+  "loss": "hybrid_tversky_boundary",
+  "best_val_iou": 0.7366,
+  "epoch": 67,
+  "status": "experimental",
+  "inference_note": "requires updated change_service.py - not drop-in compatible with v2",
+  "note": "v2 (0.8243 test IoU) remains production until v3 exceeds it"
+}

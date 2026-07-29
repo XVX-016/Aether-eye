@@ -2,3 +2,10 @@ onnx_path: "C:/Computing/Aether-eye/ml_core/artifacts/change_model_v2/change_mod
 metrics_path: "C:/Computing/Aether-eye/ml_core/artifacts/change_model_v2/model_card.json"
 threshold: 0.5
 overlay_alpha: 0.4
+
+# Experimental v3 (CBAM attention, boundary loss)
+# Switch to this after validation confirms improvement over v2
+# experimental_onnx_path: "ml_core/artifacts/change_model_v3/change_model_v3.onnx"
+# experimental_val_iou: 0.7366
+# Note: v3 uses 6-channel input [before+after concatenated], 
+#       not two separate tensors — requires change_service.py update
