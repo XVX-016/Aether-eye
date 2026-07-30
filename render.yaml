@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: aether-eye-backend
+    runtime: python
+    region: singapore
+    plan: starter
+    buildCommand: |
+      pip install -r backend/requirements.txt
+      cd backend && python -m alembic upgrade head
+    startCommand: |
+      cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: DB_SSL
+        value: "require"
+      - key: PYTHONPATH
+        value: .
+      - key: ENABLE_STAC_WATCHER
+        value: "true"
+      - key: STAC_POLL_MINUTES
+        value: "360"
+      - key: ENABLE_ACTIVITY_AGGREGATOR
+        value: "true"
+      - key: LOG_LEVEL
+        value: "info"
+      - key: AIRCRAFT_CLASSIFIER_CONFIG_PATH
+        value: backend/configs/inference/aircraft_classifier.yaml
+      - key: CHANGE_DETECTOR_CONFIG_PATH
+        value: backend/configs/inference/change_detector.yaml
+    healthCheckPath: /health
+    autoDeploy: true

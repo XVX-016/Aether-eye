@@ -26,11 +26,13 @@ _async_session_factory: async_sessionmaker[AsyncSession] | None = None
 def _ensure_engine_and_session() -> tuple[object, async_sessionmaker[AsyncSession]]:
     global engine, _async_session_factory
     if engine is None or _async_session_factory is None:
+        ssl_mode = os.environ.get("DB_SSL", "require")
+        connect_args = {"ssl": ssl_mode, "timeout": 10} if ssl_mode != "disable" else {"ssl": False, "timeout": 10}
         engine = create_async_engine(
             DATABASE_URL,
             echo=SQL_ECHO,
             pool_pre_ping=True,
-            connect_args={"ssl": False, "timeout": 10},
+            connect_args=connect_args,
         )
         _async_session_factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     return engine, _async_session_factory

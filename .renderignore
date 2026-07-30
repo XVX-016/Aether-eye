@@ -1,0 +1,18 @@
+# Exclude training data and runs
+ml_core/DATASET/
+runs/
+data/raw/
+data/processed/
+data/video_temp/
+experiments/
+
+# Keep artifacts (model weights needed for inference)
+!ml_core/artifacts/
+
+# Exclude dev files
+*.out.log
+*.err.log
+__pycache__/
+.pytest_cache/
+node_modules/
+frontend/.next/
