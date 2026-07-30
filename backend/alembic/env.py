@@ -20,7 +20,9 @@ target_metadata = Base.metadata
 
 database_url = os.getenv("DATABASE_URL")
 if database_url:
-    config.set_main_option("sqlalchemy.url", database_url)
+    # Escape % as %% so Python configparser does not throw invalid interpolation syntax errors
+    escaped_url = database_url.replace("%", "%%")
+    config.set_main_option("sqlalchemy.url", escaped_url)
 
 
 def run_migrations_offline() -> None:
