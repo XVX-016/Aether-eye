@@ -7,7 +7,6 @@ name = "aether-ml_core"
 version = "0.1.0"
 description = "ML core for aerial recognition and satellite change detection."
 authors = [{ name = "Aether Eye", email = "dev@example.com" }]
-readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "torch",
@@ -31,4 +30,8 @@ dev = [
 
 [project.urls]
 Homepage = "https://example.com"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["aether_ml*"]
 
