@@ -45,10 +45,14 @@ def do_run_migrations(connection: Connection) -> None:
 
 
 async def run_migrations_online() -> None:
+    ssl_mode = os.environ.get("DB_SSL", "require")
+    connect_args = {"ssl": ssl_mode, "timeout": 10} if ssl_mode != "disable" else {"ssl": False, "timeout": 10}
+    
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args=connect_args,
     )
 
     async with connectable.connect() as connection:
