@@ -169,12 +169,12 @@ def classify_aircraft_onnx(image_bgr: np.ndarray):
 
     cfg = get_aircraft_classifier_config()
     session = get_aircraft_classifier_onnx_session()
-    torch_pipeline = get_aircraft_classifier()
 
     # Prefer classes from model_card.json
     classes, display_names = _load_model_card_classes(cfg.model_path)
     if not classes:
-        classes = torch_pipeline.class_names
+        # Fallback default class list if model_card missing
+        classes = [f"class_{i}" for i in range(cfg.num_classes)]
 
     inp = _preprocess_imagenet_rgb(image_bgr, cfg.image_size)
     input_name = session.get_inputs()[0].name
