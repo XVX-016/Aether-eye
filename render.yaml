@@ -3,19 +3,20 @@ services:
     name: aether-eye-backend
     runtime: python
     region: singapore
-    plan: starter
+    plan: free
     rootDir: backend
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1
+    preDeployCommand: python -m alembic -c alembic.ini upgrade head
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
     envVars:
       - key: DATABASE_URL
         sync: false
       - key: PYTHONPATH
-        value: /opt/render/project/src/backend
+        value: /opt/render/project/src
       - key: ENABLE_STAC_WATCHER
         value: "false"
       - key: ENABLE_ACTIVITY_AGGREGATOR
-        value: "true"
+        value: "false"
       - key: LOG_LEVEL
         value: "info"
       - key: AIRCRAFT_CLASSIFIER_CONFIG_PATH
