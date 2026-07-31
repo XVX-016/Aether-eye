@@ -1,6 +1,6 @@
 # Active model - Military Aircraft Classifier v2
-model_path: "ml_core/artifacts/aircraft_classifier_v2/aircraft_classifier_v2.pt"
-onnx_path: "ml_core/artifacts/aircraft_classifier_v2/aircraft_classifier_v2.onnx"
+model_path: "../ml_core/artifacts/aircraft_classifier_v2/aircraft_classifier_v2.pt"
+onnx_path: "../ml_core/artifacts/aircraft_classifier_v2/aircraft_classifier_v2_int8.onnx"
 architecture: "convnext_small"
 num_classes: 98
 image_size: 224

@@ -4,29 +4,25 @@ services:
     runtime: python
     region: singapore
     plan: starter
-    buildCommand: |
-      pip install -r backend/requirements.txt
-      pip install ./ml_core
-    startCommand: |
-      cd backend && python -m alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1
     envVars:
       - key: DATABASE_URL
         sync: false
-      - key: DB_SSL
-        value: "require"
       - key: PYTHONPATH
-        value: .
+        value: /opt/render/project/src/backend
       - key: ENABLE_STAC_WATCHER
-        value: "true"
-      - key: STAC_POLL_MINUTES
-        value: "360"
+        value: "false"
       - key: ENABLE_ACTIVITY_AGGREGATOR
         value: "true"
       - key: LOG_LEVEL
         value: "info"
       - key: AIRCRAFT_CLASSIFIER_CONFIG_PATH
-        value: backend/configs/inference/aircraft_classifier.yaml
+        value: configs/inference/aircraft_classifier.yaml
       - key: CHANGE_DETECTOR_CONFIG_PATH
-        value: backend/configs/inference/change_detector.yaml
+        value: configs/inference/change_detector.yaml
+      - key: DB_SSL
+        value: "require"
     healthCheckPath: /health
     autoDeploy: true

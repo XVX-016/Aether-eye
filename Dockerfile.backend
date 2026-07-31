@@ -19,7 +19,6 @@ COPY config.yaml ./config.yaml
 COPY backend/configs/ ./backend/configs/
 COPY ml_core/artifacts/ ./ml_core/artifacts/
 
-RUN pip install --no-cache-dir ./ml_core
 
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1

@@ -30,24 +30,17 @@ from services.intel_feed import fetch_and_store_articles, retag_existing_article
 logger = logging.getLogger(__name__)
 
 
+def _resolve_artifact_path(path_str: str, config_dir: Path) -> Path:
+    """Resolve an artifact path relative to the config file's directory."""
+    p = Path(path_str)
+    if p.is_absolute():
+        return p
+    return (config_dir / p).resolve()
+
+
 def verify_change_model_assets() -> None:
-    config_path = repo_root / "config.yaml"
-    if not config_path.exists():
-        raise RuntimeError(f"Config file missing: {config_path}")
-
-    with config_path.open("r", encoding="utf-8") as handle:
-        cfg = yaml.safe_load(handle) or {}
-
-    change_cfg = cfg.get("change_detection", {})
-    checkpoint = change_cfg.get("checkpoint")
-    if not checkpoint:
-        raise RuntimeError("config.yaml missing change_detection.checkpoint")
-
-    checkpoint_path = (repo_root / checkpoint).resolve()
-    if not checkpoint_path.exists():
-        raise RuntimeError(f"Change model checkpoint missing: {checkpoint_path}")
-
-    inference_cfg_path = repo_root / "backend" / "configs" / "inference" / "change_detector.yaml"
+    backend_root = repo_root / "backend"
+    inference_cfg_path = backend_root / "configs" / "inference" / "change_detector.yaml"
     if not inference_cfg_path.exists():
         raise RuntimeError(f"Change detector config missing: {inference_cfg_path}")
 
@@ -58,17 +51,16 @@ def verify_change_model_assets() -> None:
     if not onnx_path:
         raise RuntimeError(f"{inference_cfg_path} missing onnx_path")
 
-    onnx_file = Path(onnx_path)
-    if not onnx_file.is_absolute():
-        onnx_file = (repo_root / onnx_file).resolve()
+    onnx_file = _resolve_artifact_path(onnx_path, inference_cfg_path.parent)
     if not onnx_file.exists():
         raise RuntimeError(f"Change model ONNX missing: {onnx_file}")
 
-    logger.info("Change model v2 verified: checkpoint=%s onnx=%s", checkpoint_path, onnx_file)
+    logger.info("Change model v2 verified: onnx=%s", onnx_file)
 
 
 def verify_aircraft_classifier() -> None:
-    classifier_cfg = repo_root / "backend" / "configs" / "inference" / "aircraft_classifier.yaml"
+    backend_root = repo_root / "backend"
+    classifier_cfg = backend_root / "configs" / "inference" / "aircraft_classifier.yaml"
     if not classifier_cfg.exists():
         raise RuntimeError(f"Aircraft classifier config missing: {classifier_cfg}")
 
@@ -79,13 +71,11 @@ def verify_aircraft_classifier() -> None:
     if not onnx_path:
         raise RuntimeError(f"{classifier_cfg} missing onnx_path")
 
-    onnx_file = Path(onnx_path)
-    if not onnx_file.is_absolute():
-        onnx_file = (repo_root / onnx_file).resolve()
+    onnx_file = _resolve_artifact_path(onnx_path, classifier_cfg.parent)
     if not onnx_file.exists():
         raise RuntimeError(f"Aircraft classifier ONNX missing: {onnx_file}")
 
-    logger.info("Aircraft classifier v1 verified: convnext_small 100 classes")
+    logger.info("Aircraft classifier verified: convnext_small %s classes", classifier_data.get('num_classes', '?'))
 
 
 def create_app() -> FastAPI:
@@ -126,18 +116,18 @@ def create_app() -> FastAPI:
     @app.on_event("startup")
     async def on_startup():
         await init_db()
-        verify_change_model_assets()
+        # Verify model files exist (no memory cost — models lazy-load on first request)
+        try:
+            verify_change_model_assets()
+        except Exception as exc:
+            logger.warning("Change model verification skipped: %s", exc)
         try:
             verify_aircraft_classifier()
         except Exception as exc:
-            logger.warning("Aircraft classifier verification skipped due to error: %s", exc)
-        try:
-            from services.detection_service import get_detection_service
-
-            get_detection_service()
-            logger.info("YOLO detector loaded: yolov8n")
-        except Exception as exc:
-            logger.warning("YOLO detector load failed: %s", exc)
+            logger.warning("Aircraft classifier verification skipped: %s", exc)
+        # NOTE: YOLO detector, change model, and aircraft classifier are NOT
+        # loaded into memory here. They lazy-load via @lru_cache on first
+        # inference request. This keeps startup RAM at ~150MB for free-tier.
         try:
             async with async_session() as session:
                 existing_detection_count = await session.scalar(
