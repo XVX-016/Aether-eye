@@ -137,7 +137,8 @@ class AircraftDetectionService:
                 continue
             
             try:
-                cls_result = self.classifier.classify(crop_bgr)
+                from app.services.vit_service import classify_aircraft_onnx
+                cls_result, _ = classify_aircraft_onnx(crop_bgr)
                 class_name = cls_result.class_name
                 class_conf = cls_result.confidence
                 origin_country = cls_result.origin_country

@@ -22,7 +22,6 @@ WORKDIR /app
 
 # Install ML core and backend dependencies.
 RUN pip install --upgrade pip && \
-    pip install --no-cache-dir ./ml_core && \
     pip install --no-cache-dir -r backend/requirements.txt
 
 WORKDIR /app/backend
