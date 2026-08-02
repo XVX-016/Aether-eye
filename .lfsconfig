@@ -1,0 +1,2 @@
+[lfs]
+    fetchexclude = ml_core/artifacts/change_model_v1/**,ml_core/artifacts/change_model_v3/**,ml_core/artifacts/aircraft_classifier_v1/**,runs/**

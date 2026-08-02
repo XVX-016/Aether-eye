@@ -6,12 +6,14 @@ services:
     plan: free
     rootDir: backend
     buildCommand: pip install -r requirements.txt
-    startCommand: sh -c "python -m alembic -c alembic.ini upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1"
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
     envVars:
       - key: DATABASE_URL
         sync: false
       - key: PYTHONPATH
-        value: /opt/render/project/src
+        value: /opt/render/project/src/backend
+      - key: DB_SSL
+        value: require
       - key: ENABLE_STAC_WATCHER
         value: "false"
       - key: ENABLE_ACTIVITY_AGGREGATOR
@@ -22,7 +24,6 @@ services:
         value: configs/inference/aircraft_classifier.yaml
       - key: CHANGE_DETECTOR_CONFIG_PATH
         value: configs/inference/change_detector.yaml
-      - key: DB_SSL
-        value: "require"
     healthCheckPath: /health
     autoDeploy: true
+    preDeployCommand: python -m alembic upgrade head
