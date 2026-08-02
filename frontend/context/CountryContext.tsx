@@ -39,7 +39,14 @@ function readSessionCountry(): CountryOption | null {
 }
 
 export const CountryProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [country, setCountry] = useState<CountryOption>(() => readSessionCountry() ?? "USA");
+    const [country, setCountry] = useState<CountryOption>("USA");
+
+    useEffect(() => {
+        const stored = readSessionCountry();
+        if (stored) {
+            setCountry(stored);
+        }
+    }, []);
 
     useEffect(() => {
         if (typeof window === "undefined") return;

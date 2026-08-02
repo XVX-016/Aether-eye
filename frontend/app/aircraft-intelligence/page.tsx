@@ -51,10 +51,7 @@ function modelStatusStyle(online: boolean) {
 }
 
 function readHealthUrl() {
-    if (typeof window === "undefined") {
-        return "http://127.0.0.1:8000/health/models";
-    }
-    return `${window.location.protocol}//${window.location.hostname}:8000/health/models`;
+    return "/health/models";
 }
 
 function tabButtonStyle(active: boolean): React.CSSProperties {
