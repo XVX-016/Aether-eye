@@ -30,12 +30,14 @@ from services.intel_feed import fetch_and_store_articles, retag_existing_article
 logger = logging.getLogger(__name__)
 
 
-def _resolve_artifact_path(path_str: str, config_dir: Path) -> Path:
-    """Resolve an artifact path relative to the config file's directory."""
+def _resolve_artifact_path(path_str: str) -> Path:
+    """Resolve an artifact path relative to repo_root."""
     p = Path(path_str)
     if p.is_absolute():
         return p
-    return (config_dir / p).resolve()
+    # Strip leading '../' or './' if path starts relative to backend or configs
+    clean_path = path_str.lstrip("../").lstrip("./")
+    return (repo_root / clean_path).resolve()
 
 
 def verify_change_model_assets() -> None:
@@ -51,7 +53,9 @@ def verify_change_model_assets() -> None:
     if not onnx_path:
         raise RuntimeError(f"{inference_cfg_path} missing onnx_path")
 
-    onnx_file = _resolve_artifact_path(onnx_path, inference_cfg_path.parent)
+    onnx_file = _resolve_artifact_path(onnx_path)
+    logger.info("Repo root: %s", repo_root)
+    logger.info("Change model resolved path: %s", onnx_file)
     if not onnx_file.exists():
         raise RuntimeError(f"Change model ONNX missing: {onnx_file}")
 
@@ -71,7 +75,8 @@ def verify_aircraft_classifier() -> None:
     if not onnx_path:
         raise RuntimeError(f"{classifier_cfg} missing onnx_path")
 
-    onnx_file = _resolve_artifact_path(onnx_path, classifier_cfg.parent)
+    onnx_file = _resolve_artifact_path(onnx_path)
+    logger.info("Aircraft classifier resolved path: %s", onnx_file)
     if not onnx_file.exists():
         raise RuntimeError(f"Aircraft classifier ONNX missing: {onnx_file}")
 
