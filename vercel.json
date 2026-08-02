@@ -1,20 +1,14 @@
 {
   "version": 2,
-  "buildCommand": "cd frontend && npm install && npm run build",
-  "outputDirectory": "frontend/.next",
-  "installCommand": "cd frontend && npm install",
   "framework": "nextjs",
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://aether-eye-backend.onrender.com/api/:path*"
+      "destination": "https://aether-eye.onrender.com/api/:path*"
     },
     {
       "source": "/v1/:path*",
-      "destination": "https://aether-eye-backend.onrender.com/v1/:path*"
+      "destination": "https://aether-eye.onrender.com/v1/:path*"
     }
-  ],
-  "env": {
-    "NEXT_PUBLIC_API_URL": "https://aether-eye-backend.onrender.com"
-  }
+  ]
 }
