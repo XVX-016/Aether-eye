@@ -72,6 +72,9 @@ runs/
 !ml_core/artifacts/**/*.pt
 !ml_core/artifacts/**/*.onnx
 !ml_core/artifacts/**/*.json
+!frontend/public/models/
+!frontend/public/models/**
+
 
 # Local runtime
 *.sqlite
