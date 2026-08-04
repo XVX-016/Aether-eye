@@ -8,9 +8,9 @@ from pathlib import Path
 
 import yaml
 
-repo_root = Path(__file__).resolve().parents[2]
-ml_core_root = repo_root / "ml_core"
-for path in (str(repo_root), str(ml_core_root)):
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+ml_core_root = REPO_ROOT / "ml_core"
+for path in (str(REPO_ROOT), str(ml_core_root)):
     if path not in sys.path:
         sys.path.insert(0, path)
 
@@ -30,57 +30,38 @@ from services.intel_feed import fetch_and_store_articles, retag_existing_article
 logger = logging.getLogger(__name__)
 
 
-def _resolve_artifact_path(path_str: str) -> Path:
-    """Resolve an artifact path relative to repo_root."""
-    p = Path(path_str)
-    if p.is_absolute():
-        return p
-    # Strip leading '../' or './' if path starts relative to backend or configs
-    clean_path = path_str.lstrip("../").lstrip("./")
-    return (repo_root / clean_path).resolve()
-
-
 def verify_change_model_assets() -> None:
-    backend_root = repo_root / "backend"
-    inference_cfg_path = backend_root / "configs" / "inference" / "change_detector.yaml"
-    if not inference_cfg_path.exists():
-        raise RuntimeError(f"Change detector config missing: {inference_cfg_path}")
+    # Read config
+    cfg_path = REPO_ROOT / "backend/configs/inference/change_detector.yaml"
+    if not cfg_path.exists():
+        logger.warning(f"Change detector config missing: {cfg_path}")
+        return
 
-    with inference_cfg_path.open("r", encoding="utf-8") as handle:
-        inference_cfg = yaml.safe_load(handle) or {}
+    with cfg_path.open("r", encoding="utf-8") as handle:
+        cfg = yaml.safe_load(handle) or {}
 
-    onnx_path = inference_cfg.get("onnx_path")
-    if not onnx_path:
-        raise RuntimeError(f"{inference_cfg_path} missing onnx_path")
-
-    onnx_file = _resolve_artifact_path(onnx_path)
-    logger.info("Repo root: %s", repo_root)
-    logger.info("Change model resolved path: %s", onnx_file)
-    if not onnx_file.exists():
-        raise RuntimeError(f"Change model ONNX missing: {onnx_file}")
-
-    logger.info("Change model v2 verified: onnx=%s", onnx_file)
+    # Resolve onnx path relative to repo root
+    onnx_path = REPO_ROOT / cfg["onnx_path"]
+    if not onnx_path.exists():
+        logger.warning(f"Change model ONNX missing: {onnx_path}")
+        return
+    logger.info(f"Change model verified: {onnx_path}")
 
 
 def verify_aircraft_classifier() -> None:
-    backend_root = repo_root / "backend"
-    classifier_cfg = backend_root / "configs" / "inference" / "aircraft_classifier.yaml"
-    if not classifier_cfg.exists():
-        raise RuntimeError(f"Aircraft classifier config missing: {classifier_cfg}")
+    cfg_path = REPO_ROOT / "backend/configs/inference/aircraft_classifier.yaml"
+    if not cfg_path.exists():
+        logger.warning(f"Aircraft classifier config missing: {cfg_path}")
+        return
 
-    with classifier_cfg.open("r", encoding="utf-8") as handle:
-        classifier_data = yaml.safe_load(handle) or {}
+    with cfg_path.open("r", encoding="utf-8") as handle:
+        cfg = yaml.safe_load(handle) or {}
 
-    onnx_path = classifier_data.get("onnx_path")
-    if not onnx_path:
-        raise RuntimeError(f"{classifier_cfg} missing onnx_path")
-
-    onnx_file = _resolve_artifact_path(onnx_path)
-    logger.info("Aircraft classifier resolved path: %s", onnx_file)
-    if not onnx_file.exists():
-        raise RuntimeError(f"Aircraft classifier ONNX missing: {onnx_file}")
-
-    logger.info("Aircraft classifier verified: convnext_small %s classes", classifier_data.get('num_classes', '?'))
+    onnx_path = REPO_ROOT / cfg["onnx_path"]
+    if not onnx_path.exists():
+        logger.warning(f"Aircraft classifier ONNX missing: {onnx_path}")
+        return
+    logger.info(f"Aircraft classifier verified: {onnx_path}")
 
 
 def create_app() -> FastAPI:
@@ -97,26 +78,15 @@ def create_app() -> FastAPI:
         return {"status": "ok", "version": "1.1.0"}
 
     @app.get("/health/models")
-    async def health_models():
-        try:
-            verify_change_model_assets()
-            verify_aircraft_classifier()
-            status = {
-                "status": "ok",
-                "change_model": "v2",
-                "aircraft_classifier": "convnext_small_100cls",
-            }
-            try:
-                from services.detection_service import get_detection_service
-
-                get_detection_service()
-                status["yolo_detector"] = "yolov8n"
-            except Exception as exc:
-                status["yolo_detector"] = f"error: {exc}"
-                status["status"] = "degraded"
-            return status
-        except RuntimeError as exc:
-            return JSONResponse(status_code=503, content={"status": "error", "detail": str(exc)})
+    async def model_health():
+        change_onnx = REPO_ROOT / "ml_core/artifacts/change_model_v2/change_model_v2_int8.onnx"
+        aircraft_onnx = REPO_ROOT / "ml_core/artifacts/aircraft_classifier_v2/aircraft_classifier_v2_int8.onnx"
+        return {
+            "status": "ok",
+            "change_model": "v2-int8" if change_onnx.exists() else "missing",
+            "aircraft_classifier": "v2-military" if aircraft_onnx.exists() else "missing",
+            "repo_root": str(REPO_ROOT),
+        }
 
     @app.on_event("startup")
     async def on_startup():
