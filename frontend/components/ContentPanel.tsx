@@ -18,7 +18,7 @@ export const ContentPanel: React.FC<Props> = ({
     children,
 }) => {
     return (
-        <section className={className ? `panel ${className}` : "panel"}>
+        <section className={className ? `card-vercel ${className}` : "card-vercel"}>
             <header className="panel-header">
                 <div className="panel-title-wrap">
                     <div className="panel-title">{title}</div>

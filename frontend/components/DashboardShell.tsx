@@ -548,7 +548,13 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
                                         {!consoleMode && (
                                             <div className="button-row button-row-span">
                                                 <button
-                                                    className="btn btn-primary"
+                                                    className="btn"
+                                                    style={{
+                                                        background: "linear-gradient(135deg, #1a6cf5, #06b6d4)",
+                                                        color: "white",
+                                                        border: "none",
+                                                        padding: "10px 24px",
+                                                    }}
                                                     type="button"
                                                     onClick={runChange}
                                                     disabled={!beforeFile || !afterFile || loadingChange}

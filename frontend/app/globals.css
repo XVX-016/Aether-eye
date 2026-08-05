@@ -1754,3 +1754,55 @@ body > * {
     min-height: 320px;
   }
 }
+
+/* ── Vercel Dark UI Redesign Additions ── */
+
+.card-vercel {
+  background: #111111;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.card-vercel:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: #1a1a1a;
+}
+
+.card-gradient-border {
+  background: #111111;
+  border-radius: 8px;
+  position: relative;
+}
+
+.card-gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  padding: 1px;
+  background: linear-gradient(135deg, #1a6cf5, #06b6d4, transparent 60%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.badge-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  font-family: monospace;
+}
+
+.badge-online  { border: 1px solid #06b6d4; color: #06b6d4; background: #06b6d410; }
+.badge-offline { border: 1px solid #ef4444; color: #ef4444; background: #ef444410; }
+.badge-normal  { border: 1px solid #374151; color: #6b7280; }
+.badge-elevated { border: 1px solid #92400e; color: #d97706; }
+.badge-anomalous { border: 1px solid #7f1d1d; color: #ef4444; }
+

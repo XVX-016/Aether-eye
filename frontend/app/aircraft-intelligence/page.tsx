@@ -58,7 +58,8 @@ function tabButtonStyle(active: boolean): React.CSSProperties {
     return {
         flex: 1,
         border: "none",
-        borderBottom: active ? "2px solid #22D3EE" : "2px solid transparent",
+        borderBottom: active ? "2px solid" : "2px solid transparent",
+        borderImage: active ? "linear-gradient(90deg, #1a6cf5, #06b6d4) 1" : undefined,
         background: "transparent",
         color: active ? "var(--text-primary)" : "#6B7280",
         padding: "0.75rem 0.5rem",
@@ -441,22 +442,14 @@ export default function AircraftIntelligencePage() {
                         </div>
                     </div>
                     <div
-                        className="mono"
-                        style={{
-                            padding: "1px 6px",
-                            fontSize: "0.6rem",
-                            letterSpacing: "0.12em",
-                            textTransform: "uppercase",
-                            borderRadius: 0,
-                            ...modelStatusStyle(classifierOnline),
-                        }}
+                        className={`badge-status ${classifierOnline ? "badge-online" : "badge-offline"}`}
                     >
-                        {classifierOnline ? "Classifier Online" : "Classifier Offline"}
+                        {classifierOnline ? "CLASSIFIER ONLINE" : "CLASSIFIER OFFLINE"}
                     </div>
                 </header>
 
                 <div style={{ display: "grid", gridTemplateColumns: "minmax(320px, 0.95fr) minmax(380px, 1.15fr)", gap: "1.5rem" }}>
-                    <section className="glass-panel" style={{ padding: "1.25rem" }}>
+                    <section className="card-vercel" style={{ padding: "1.25rem" }}>
                         <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.1)", marginBottom: "1rem" }}>
                             <button type="button" className="mono" style={tabButtonStyle(activeTab === "image")} onClick={() => setActiveTab("image")}>
                                 Image Upload
@@ -735,7 +728,7 @@ export default function AircraftIntelligencePage() {
                         ) : null}
                     </section>
 
-                    <section className="glass-panel" style={{ padding: "1.25rem" }}>
+                    <section className="card-vercel" style={{ padding: "1.25rem" }}>
                         <div className="ops-kicker mono">Results</div>
                         <h2 className="ops-panel-title mono" style={{ marginBottom: "1rem" }}>
                             {activeTab === "image" ? "Aircraft Assessment" : activeTab === "video" ? "Video Timeline" : "Live Feed"}
@@ -995,7 +988,7 @@ export default function AircraftIntelligencePage() {
                     </section>
                 </div>
 
-                <section className="glass-panel" style={{ marginTop: "1.5rem", padding: "1.25rem" }}>
+                <section className="card-vercel" style={{ marginTop: "1.5rem", padding: "1.25rem" }}>
                     <div className="ops-kicker mono">Model Information</div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: "0.75rem", marginTop: "0.9rem" }}>
                         {[
@@ -1005,7 +998,7 @@ export default function AircraftIntelligencePage() {
                             ["Explainability", "Grad-CAM attention maps"],
                             ["Classes Include", "F-16A/B, F/A-18, Eurofighter Typhoon, C-130, Il-76, Tornado + 94 more"],
                         ].map(([label, value]) => (
-                            <div key={label as string} style={{ border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.02)", padding: "0.85rem", borderRadius: 0 }}>
+                            <div key={label as string} className="card-vercel" style={{ padding: "0.85rem" }}>
                                 <div className="mono" style={{ color: "#4B5563", fontSize: "0.58rem", textTransform: "uppercase" }}>{label}</div>
                                 <div style={{ marginTop: "0.45rem", fontSize: "0.88rem", lineHeight: 1.45 }}>{value}</div>
                             </div>

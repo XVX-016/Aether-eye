@@ -68,7 +68,7 @@ export function SiteStatusPanel({ onSiteClick }: Props) {
     }, []);
 
     return (
-        <section className="glass-panel" style={{ padding: "1rem 1.1rem", marginTop: "1rem", borderRadius: 2 }}>
+        <section className="card-vercel" style={{ padding: "1rem 1.1rem", marginTop: "1rem" }}>
             <div className="ops-panel-header" style={{ marginBottom: "0.75rem" }}>
                 <div>
                     <div className="ops-kicker mono">Site Monitoring</div>
@@ -80,14 +80,14 @@ export function SiteStatusPanel({ onSiteClick }: Props) {
             <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
                     <thead>
-                        <tr className="mono" style={{ color: "var(--text-muted)", textTransform: "uppercase", fontSize: "0.65rem", letterSpacing: "0.18em" }}>
-                            <th style={{ textAlign: "left", padding: "0.45rem 0.35rem" }}>Name</th>
-                            <th style={{ textAlign: "left", padding: "0.45rem 0.35rem" }}>Type</th>
-                            <th style={{ textAlign: "left", padding: "0.45rem 0.35rem" }}>Priority</th>
-                            <th style={{ textAlign: "right", padding: "0.45rem 0.35rem" }}>Today</th>
-                            <th style={{ textAlign: "right", padding: "0.45rem 0.35rem" }}>Flights</th>
-                            <th style={{ textAlign: "right", padding: "0.45rem 0.35rem" }}>Baseline</th>
-                            <th style={{ textAlign: "right", padding: "0.45rem 0.35rem" }}>Status</th>
+                        <tr className="mono" style={{ background: "#0d0d0d", borderBottom: "1px solid rgba(255,255,255,0.08)", color: "var(--text-muted)", textTransform: "uppercase", fontSize: "0.65rem", letterSpacing: "0.18em" }}>
+                            <th style={{ textAlign: "left", padding: "0.55rem 0.35rem" }}>Name</th>
+                            <th style={{ textAlign: "left", padding: "0.55rem 0.35rem" }}>Type</th>
+                            <th style={{ textAlign: "left", padding: "0.55rem 0.35rem" }}>Priority</th>
+                            <th style={{ textAlign: "right", padding: "0.55rem 0.35rem" }}>Today</th>
+                            <th style={{ textAlign: "right", padding: "0.55rem 0.35rem" }}>Flights</th>
+                            <th style={{ textAlign: "right", padding: "0.55rem 0.35rem" }}>Baseline</th>
+                            <th style={{ textAlign: "right", padding: "0.55rem 0.35rem" }}>Status</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -99,29 +99,46 @@ export function SiteStatusPanel({ onSiteClick }: Props) {
                             <tr>
                                 <td colSpan={7} style={{ padding: "0.85rem 0.35rem", color: "var(--text-muted)" }}>No site status available.</td>
                             </tr>
-                        ) : rows.map((row) => (
-                            <tr
-                                key={row.id}
-                                style={{ borderTop: "1px solid rgba(255,255,255,0.06)", cursor: onSiteClick ? "pointer" : "default" }}
-                                onClick={() => onSiteClick?.(row.id)}
-                            >
-                                <td style={{ padding: "0.65rem 0.35rem", color: "var(--text-primary)", fontWeight: 600 }}>{row.name}</td>
-                                <td className="mono" style={{ padding: "0.65rem 0.35rem", color: "#4B5563", fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase" }}>{formatLabel(row.type)}</td>
-                                <td style={{ padding: "0.65rem 0.35rem" }}>
-                                    <span className="mono" style={{ display: "inline-block", padding: "1px 6px", fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", borderRadius: 2, ...priorityStyle(row.priority) }}>
-                                        {row.priority}
-                                    </span>
-                                </td>
-                                <td style={{ padding: "0.65rem 0.35rem", textAlign: "right", color: "var(--text-primary)" }}>{row.today_count ?? "--"}</td>
-                                <td style={{ padding: "0.65rem 0.35rem", textAlign: "right", color: "var(--text-primary)" }}>{row.today_flights != null ? row.today_flights : "--"}</td>
-                                <td style={{ padding: "0.65rem 0.35rem", textAlign: "right", color: "var(--text-primary)" }}>{row.baseline != null && row.baseline > 0 ? row.baseline.toFixed(1) : "--"}</td>
-                                <td style={{ padding: "0.65rem 0.35rem", textAlign: "right" }}>
-                                    <span className="mono" style={{ display: "inline-block", textTransform: "uppercase", ...statusStyle(row.status) }}>
-                                        {row.status}
-                                    </span>
-                                </td>
-                            </tr>
-                        ))}
+                        ) : rows.map((row) => {
+                            const statusBadgeClass =
+                                row.status === "anomalous"
+                                    ? "badge-anomalous"
+                                    : row.status === "elevated"
+                                        ? "badge-elevated"
+                                        : "badge-normal";
+                            const priorityBadgeClass =
+                                row.priority === "critical"
+                                    ? "badge-anomalous"
+                                    : row.priority === "high"
+                                        ? "badge-elevated"
+                                        : "badge-normal";
+
+                            return (
+                                <tr
+                                    key={row.id}
+                                    style={{ borderTop: "1px solid rgba(255,255,255,0.06)", cursor: onSiteClick ? "pointer" : "default", transition: "background 0.15s ease" }}
+                                    onClick={() => onSiteClick?.(row.id)}
+                                    onMouseEnter={(e) => { e.currentTarget.style.background = "#1a1a1a"; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                                >
+                                    <td style={{ padding: "0.65rem 0.35rem", color: "var(--text-primary)", fontWeight: 600 }}>{row.name}</td>
+                                    <td className="mono" style={{ padding: "0.65rem 0.35rem", color: "#4B5563", fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase" }}>{formatLabel(row.type)}</td>
+                                    <td style={{ padding: "0.65rem 0.35rem" }}>
+                                        <span className={`badge-status ${priorityBadgeClass}`}>
+                                            {row.priority.toUpperCase()}
+                                        </span>
+                                    </td>
+                                    <td style={{ padding: "0.65rem 0.35rem", textAlign: "right", color: "var(--text-primary)" }}>{row.today_count ?? "--"}</td>
+                                    <td style={{ padding: "0.65rem 0.35rem", textAlign: "right", color: "var(--text-primary)" }}>{row.today_flights != null ? row.today_flights : "--"}</td>
+                                    <td style={{ padding: "0.65rem 0.35rem", textAlign: "right", color: "var(--text-primary)" }}>{row.baseline != null && row.baseline > 0 ? row.baseline.toFixed(1) : "--"}</td>
+                                    <td style={{ padding: "0.65rem 0.35rem", textAlign: "right" }}>
+                                        <span className={`badge-status ${statusBadgeClass}`}>
+                                            {row.status.toUpperCase()}
+                                        </span>
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>

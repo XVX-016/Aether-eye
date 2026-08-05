@@ -37,18 +37,18 @@ function relativeTime(iso: string) {
 
 function badgeClass(event: OperationsEvent) {
     if (event.event_type === "ACTIVITY_SURGE") {
-        return { label: "HIGH", className: "ops-badge-high" };
+        return { label: "HIGH", className: "badge-anomalous" };
     }
     if (event.event_type === "ELEVATED_ACTIVITY" || event.event_type === "NEW_OBJECT") {
-        return { label: "MED", className: "ops-badge-medium" };
+        return { label: "MED", className: "badge-elevated" };
     }
     if ((event.confidence ?? 0) >= 0.7) {
-        return { label: "HIGH", className: "ops-badge-high" };
+        return { label: "HIGH", className: "badge-anomalous" };
     }
     if ((event.confidence ?? 0) >= 0.4) {
-        return { label: "MED", className: "ops-badge-medium" };
+        return { label: "MED", className: "badge-elevated" };
     }
-    return { label: "LOW", className: "ops-badge-low" };
+    return { label: "LOW", className: "badge-normal" };
 }
 
 function formatLocation(event: OperationsEvent) {
@@ -94,19 +94,32 @@ export function EventFeed({ events, onEventClick, loading }: Props) {
     return (
         <>
             <div className="ops-filter-row">
-                {FILTERS.map((value) => (
-                    <button
-                        key={value}
-                        type="button"
-                        className={filter === value ? "ops-filter-btn ops-filter-btn-active" : "ops-filter-btn"}
-                        onClick={() => setFilter(value)}
-                    >
-                        {value}
-                    </button>
-                ))}
+                {FILTERS.map((value) => {
+                    const isActive = filter === value;
+                    return (
+                        <button
+                            key={value}
+                            type="button"
+                            style={{
+                                background: isActive ? "#111" : "transparent",
+                                border: isActive ? "1px solid rgba(255, 255, 255, 0.13)" : "1px solid #222",
+                                color: isActive ? "#ffffff" : "#666666",
+                                padding: "4px 10px",
+                                borderRadius: "4px",
+                                fontSize: "0.65rem",
+                                fontFamily: "monospace",
+                                cursor: "pointer",
+                                transition: "all 0.15s ease",
+                            }}
+                            onClick={() => setFilter(value)}
+                        >
+                            {value}
+                        </button>
+                    );
+                })}
             </div>
 
-            <div className="ops-feed-list">
+            <div className="ops-feed-list" style={{ display: "grid", gap: "0.5rem", marginTop: "0.75rem" }}>
                 {loading ? (
                     <div className="empty-state small empty-state-plain">Loading events…</div>
                 ) : filteredEvents.length === 0 ? (
@@ -118,18 +131,26 @@ export function EventFeed({ events, onEventClick, loading }: Props) {
                             <button
                                 key={event.event_id}
                                 type="button"
-                                className="ops-event-card"
+                                className="card-vercel"
+                                style={{
+                                    display: "block",
+                                    width: "100%",
+                                    textAlign: "left",
+                                    padding: "0.75rem",
+                                    cursor: "pointer",
+                                    color: "inherit",
+                                }}
                                 onClick={() => onEventClick(event)}
                             >
-                                <div className="ops-event-card-top">
-                                    <span className={`ops-priority-badge mono ${badge.className}`}>
+                                <div className="ops-event-card-top" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                    <span className={`badge-status ${badge.className}`}>
                                         {badge.label}
                                     </span>
-                                    <span className="ops-event-time mono">{relativeTime(event.timestamp)}</span>
+                                    <span className="ops-event-time mono" style={{ fontSize: "0.62rem", color: "#666" }}>{relativeTime(event.timestamp)}</span>
                                 </div>
-                                <div className="ops-event-title mono">{formatType(event.event_type)}</div>
-                                <div className="ops-event-location">{formatLocation(event)}</div>
-                                <div className="ops-event-meta mono">
+                                <div className="ops-event-title mono" style={{ marginTop: "0.5rem", fontSize: "0.72rem", color: "#ffffff" }}>{formatType(event.event_type)}</div>
+                                <div className="ops-event-location" style={{ marginTop: "0.25rem", fontSize: "0.85rem", color: "#888888" }}>{formatLocation(event)}</div>
+                                <div className="ops-event-meta mono" style={{ marginTop: "0.4rem", fontSize: "0.6rem", color: "#444444", display: "flex", gap: "1rem" }}>
                                     <span>{(event.confidence * 100).toFixed(1)}%</span>
                                     <span>
                                         {event.lat.toFixed(3)}, {event.lon.toFixed(3)}

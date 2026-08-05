@@ -133,45 +133,45 @@ export function StatCards() {
                 flexWrap: "wrap",
             }}
         >
-            {cards.map((card) => (
-                <div
-                    key={card.key}
-                    className="glass-panel"
-                    style={{
-                        flex: "1 1 220px",
-                        minWidth: 0,
-                        padding: "1.15rem 1.2rem",
-                        borderTop: `1px solid ${card.accent}`,
-                        background: "rgba(255,255,255,0.02)",
-                        borderRadius: 2,
-                    }}
-                >
+            {cards.map((card, index) => {
+                const isActive = index === 0;
+                return (
                     <div
-                        className={`mono ${card.loading ? "ops-stat-pulse" : ""}`}
+                        key={card.key}
+                        className={isActive ? "card-gradient-border" : "card-vercel"}
                         style={{
-                            fontSize: "2.5rem",
-                            fontWeight: 700,
-                            color: "var(--text-primary)",
-                            letterSpacing: "0.08em",
-                            lineHeight: 1,
+                            flex: "1 1 220px",
+                            minWidth: 0,
+                            padding: "1.15rem 1.2rem",
                         }}
                     >
-                        {card.value}
+                        <div
+                            className={`mono ${card.loading ? "ops-stat-pulse" : ""}`}
+                            style={{
+                                fontSize: "2.5rem",
+                                fontWeight: 700,
+                                color: "#ffffff",
+                                letterSpacing: "0.08em",
+                                lineHeight: 1,
+                                fontFamily: "monospace",
+                            }}
+                        >
+                            {card.value}
+                        </div>
+                        <div
+                            style={{
+                                marginTop: "0.45rem",
+                                fontSize: "0.65rem",
+                                fontVariantCaps: "all-small-caps",
+                                color: "#666666",
+                                letterSpacing: "0.15em",
+                            }}
+                        >
+                            {card.label}
+                        </div>
                     </div>
-                    <div
-                        className="mono"
-                        style={{
-                            marginTop: "0.45rem",
-                            fontSize: "0.65rem",
-                            textTransform: "uppercase",
-                            color: "var(--text-muted)",
-                            letterSpacing: "0.22em",
-                        }}
-                    >
-                        {card.label}
-                    </div>
-                </div>
-            ))}
+                );
+            })}
         </div>
     );
 }

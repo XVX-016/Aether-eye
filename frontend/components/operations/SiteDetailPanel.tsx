@@ -131,10 +131,8 @@ export function SiteDetailPanel({ site, onClose }: Props) {
                         </div>
                     </div>
                     <button type="button" className="ops-filter-btn" onClick={onClose}>Close</button>
-                </div>
-
-                <div className="glass-panel" style={{ padding: "0.9rem", borderRadius: 2 }}>
-                    <div className="ops-kicker mono">Current Status</div>
+                </div>                <div className="card-vercel" style={{ padding: "0.9rem" }}>
+                    <div className="mono" style={{ color: "#444444", fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.12em" }}>Current Status</div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginTop: "0.65rem" }}>
                         <div>
                             <div className="mono" style={{ fontSize: "0.65rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Today</div>
@@ -150,8 +148,8 @@ export function SiteDetailPanel({ site, onClose }: Props) {
                         </div>
                         <div>
                             <div className="mono" style={{ fontSize: "0.65rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Status</div>
-                            <span className="mono" style={{ display: "inline-block", marginTop: "0.3rem", textTransform: "uppercase", ...statusStyle(status?.status ?? "normal") }}>
-                                {status?.status ?? "normal"}
+                            <span className={`badge-status ${status?.status === "anomalous" ? "badge-anomalous" : status?.status === "elevated" ? "badge-elevated" : "badge-normal"}`} style={{ marginTop: "0.3rem" }}>
+                                {(status?.status ?? "normal").toUpperCase()}
                             </span>
                         </div>
                     </div>
@@ -160,8 +158,8 @@ export function SiteDetailPanel({ site, onClose }: Props) {
 
             <div style={{ flex: 1, overflowY: "auto", padding: "1.1rem", scrollbarWidth: "thin", scrollbarColor: "#374151 transparent" }}>
 
-            <div className="glass-panel" style={{ padding: "0.9rem", marginBottom: "1rem", borderRadius: 2 }}>
-                <div className="ops-kicker mono">Flight Activity</div>
+            <div className="card-vercel" style={{ padding: "0.9rem", marginBottom: "1rem" }}>
+                <div className="mono" style={{ color: "#444444", fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.12em" }}>Flight Activity</div>
                 {flightLoading ? (
                     <div className="ops-stat-pulse" style={{ marginTop: "0.75rem" }}>
                         <div style={{ width: "35%", height: "0.7rem", borderRadius: 2, background: "rgba(148, 163, 184, 0.18)", marginBottom: "0.7rem" }} />
@@ -185,8 +183,8 @@ export function SiteDetailPanel({ site, onClose }: Props) {
                                     <div className="mono" style={{ fontSize: "0.65rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em" }}>
                                         30-Day Avg: {status.flight_baseline.toFixed(1)}
                                     </div>
-                                    <span className="mono" style={{ display: "inline-block", marginTop: "0.3rem", textTransform: "uppercase", ...statusStyle(status.flight_anomaly ?? "normal") }}>
-                                        {status.flight_anomaly ?? "normal"}
+                                    <span className={`badge-status ${status.flight_anomaly === "anomalous" ? "badge-anomalous" : status.flight_anomaly === "elevated" ? "badge-elevated" : "badge-normal"}`} style={{ marginTop: "0.3rem" }}>
+                                        {(status.flight_anomaly ?? "normal").toUpperCase()}
                                     </span>
                                 </div>
                             ) : null}
@@ -234,8 +232,8 @@ export function SiteDetailPanel({ site, onClose }: Props) {
                                             <td style={{ padding: "0.45rem 0.25rem", textAlign: "right" }}>{flight.altitude_m != null ? `${Math.round(flight.altitude_m)}m` : "--"}</td>
                                             <td style={{ padding: "0.45rem 0.25rem", textAlign: "right" }}>{flight.velocity_ms != null ? `${Math.round(flight.velocity_ms)}m/s` : "--"}</td>
                                             <td style={{ padding: "0.45rem 0.25rem", textAlign: "right" }}>
-                                                <span className="mono" style={{ display: "inline-block", textTransform: "uppercase", ...statusStyle(flight.on_ground ? "normal" : "elevated") }}>
-                                                    {flight.on_ground ? "Ground" : "Airborne"}
+                                                <span className={`badge-status ${flight.on_ground ? "badge-normal" : "badge-elevated"}`}>
+                                                    {flight.on_ground ? "GROUND" : "AIRBORNE"}
                                                 </span>
                                             </td>
                                         </tr>
@@ -247,8 +245,8 @@ export function SiteDetailPanel({ site, onClose }: Props) {
                 )}
             </div>
 
-            <div className="glass-panel" style={{ padding: "0.9rem", marginBottom: "1rem", borderRadius: 2 }}>
-                <div className="ops-kicker mono">Intelligence Feed</div>
+            <div className="card-vercel" style={{ padding: "0.9rem", marginBottom: "1rem" }}>
+                <div className="mono" style={{ color: "#444444", fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.12em" }}>Intelligence Feed</div>
                 <div style={{ marginTop: "0.75rem" }}>
                     {intelLoading ? (
                         Array.from({ length: 3 }).map((_, index) => (
@@ -275,40 +273,30 @@ export function SiteDetailPanel({ site, onClose }: Props) {
                             <div className="mono" style={{ fontSize: "0.72rem", color: "rgba(148, 163, 184, 0.8)" }}>Intel updates every 30 minutes</div>
                         </div>
                     ) : intel.articles.map((article, index) => {
-                        const tierBadge = getTierBadge(article.source_tier);
+                        const tierBadgeClass = article.source_tier === 1 ? "badge-online" : article.source_tier === 2 ? "badge-elevated" : "badge-normal";
+                        const tierLabel = article.source_tier === 1 ? "WIRE" : article.source_tier === 2 ? "MAJOR" : "SPEC";
                         return (
                             <a
                                 key={`${article.url ?? "article"}-${index}`}
                                 href={article.url}
                                 target="_blank"
                                 rel="noreferrer"
+                                className="card-vercel"
                                 style={{
                                     display: "block",
                                     textDecoration: "none",
                                     color: "inherit",
                                     padding: "0.75rem",
-                                    borderRadius: "2px",
-                                    background: "#111",
-                                    border: "1px solid #1f1f1f",
                                     marginBottom: "0.5rem",
-                                    transition: "background 140ms ease, border-color 140ms ease",
                                     cursor: "pointer",
-                                }}
-                                onMouseEnter={(event) => {
-                                    event.currentTarget.style.background = "rgba(255,255,255,0.05)";
-                                    event.currentTarget.style.borderColor = "rgba(255,255,255,0.11)";
-                                }}
-                                onMouseLeave={(event) => {
-                                    event.currentTarget.style.background = "rgba(255,255,255,0.025)";
-                                    event.currentTarget.style.borderColor = "rgba(255,255,255,0.06)";
                                 }}
                             >
                                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", marginBottom: "0.55rem" }}>
                                     <span className="mono" style={{ fontSize: "0.68rem", color: "var(--text-muted)" }}>
                                         {article.source ?? "Unknown source"}
                                     </span>
-                                    <span className="mono" style={{ padding: "1px 6px", fontSize: "0.6rem", letterSpacing: "0.12em", ...tierBadge.style }}>
-                                        {tierBadge.label}
+                                    <span className={`badge-status ${tierBadgeClass}`}>
+                                        {tierLabel}
                                     </span>
                                 </div>
                                 <div
