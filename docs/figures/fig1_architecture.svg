@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 620" width="900" height="620">
+  <defs>
+    <!-- Arrow marker -->
+    <marker id="arrow-white" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#c9d1d9"/>
+    </marker>
+    <marker id="arrow-orange" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#d4883a"/>
+    </marker>
+    <!-- Band backgrounds -->
+    <linearGradient id="band1-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#1e3a5f" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#1e3a5f" stop-opacity="0.15"/>
+    </linearGradient>
+    <linearGradient id="band2-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#1a3a2a" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#1a3a2a" stop-opacity="0.15"/>
+    </linearGradient>
+    <linearGradient id="band3-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#2d1b4e" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#2d1b4e" stop-opacity="0.15"/>
+    </linearGradient>
+    <linearGradient id="band4-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#3a1a1a" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#3a1a1a" stop-opacity="0.15"/>
+    </linearGradient>
+    <!-- Component box styles -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="1" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="620" rx="8" fill="#0d1117"/>
+  <rect x="4" y="4" width="892" height="612" rx="6" fill="none" stroke="#30363d" stroke-width="1"/>
+
+  <!-- ============================================================= -->
+  <!--  BAND 1 — DATA INGESTION                                       -->
+  <!-- ============================================================= -->
+  <rect x="20" y="16" width="860" height="148" rx="6" fill="url(#band1-grad)" stroke="#1e3a5f" stroke-width="1" stroke-opacity="0.4"/>
+  <text x="36" y="36" fill="#58a6ff" font-family="'Segoe UI',sans-serif" font-size="11" font-weight="700" letter-spacing="1.5">LAYER 1 — DATA INGESTION</text>
+
+  <!-- Satellite pipeline -->
+  <rect x="36" y="48" width="130" height="44" rx="4" fill="none" stroke="#4a8cc7" stroke-width="1"/>
+  <text x="101" y="65" fill="#c9d1d9" font-family="'Cascadia Code','Consolas',monospace" font-size="9" text-anchor="middle">Copernicus STAC</text>
+  <text x="101" y="78" fill="#8b949e" font-family="'Cascadia Code','Consolas',monospace" font-size="8" text-anchor="middle">Sentinel-2 L2A</text>
+
+  <line x1="166" y1="70" x2="192" y2="70" stroke="#c9d1d9" stroke-width="1" marker-end="url(#arrow-white)"/>
+
+  <rect x="194" y="48" width="130" height="44" rx="4" fill="none" stroke="#4a8cc7" stroke-width="1"/>
+  <text x="259" y="65" fill="#c9d1d9" font-family="'Cascadia Code','Consolas',monospace" font-size="9" text-anchor="middle">STAC Watcher</text>
+  <text x="259" y="78" fill="#8b949e" font-family="'Cascadia Code','Consolas',monospace" font-size="8" text-anchor="middle">(6 hr schedule)</text>
+
+  <line x1="324" y1="70" x2="350" y2="70" stroke="#c9d1d9" stroke-width="1" marker-end="url(#arrow-white)"/>
+
+  <rect x="352" y="48" width="130" height="44" rx="4" fill="none" stroke="#4a8cc7" stroke-width="1"/>
+  <text x="417" y="65" fill="#c9d1d9" font-family="'Cascadia Code','Consolas',monospace" font-size="9" text-anchor="middle">Scene Processor</text>
+  <text x="417" y="78" fill="#8b949e" font-family="'Cascadia Code','Consolas',monospace" font-size="8" text-anchor="middle">GeoTIFF Tiler</text>
+
+  <line x1="482" y1="70" x2="508" y2="70" stroke="#c9d1d9" stroke-width="1" marker-end="url(#arrow-white)"/>
+
+  <rect x="510" y="48" width="130" height="44" rx="4" fill="none" stroke="#4a8cc7" stroke-width="1"/>
+  <text x="575" y="65" fill="#c9d1d9" font-family="'Cascadia Code','Consolas',monospace" font-size="9" text-anchor="middle">512×512 tiles</text>
+  <text x="575" y="78" fill="#8b949e" font-family="'Cascadia Code','Consolas',monospace" font-size="8" text-anchor="middle">(rasterio)</text>
+
+  <!-- ADS-B pipeline -->
+  <rect x="36" y="100" width="130" height="44" rx="4" fill="none" stroke="#4a8cc7" stroke-width="1"/>
+  <text x="101" y="117" fill="#c9d1d9" font-family="'Cascadia Code','Consolas',monospace" font-size="9" text-anchor="middle">OpenSky Network</text>
+  <text x="101" y="130" fill="#8b949e" font-family="'Cascadia Code','Consolas',monospace" font-size="8" text-anchor="middle">ADS-B API</text>
+
+  <line x1="166" y1="122" x2="192" y2="122" stroke="#c9d1d9" stroke-width="1" marker-end="url(#arrow-white)"/>
+
+  <rect x="194" y="100" width="130" height="44" rx="4" fill="none" stroke="#4a8cc7" stroke-width="1"/>
+  <text x="259" y="117" fill="#c9d1d9" font-family="'Cascadia Code','Consolas',monospace" font-size="9" text-anchor="middle">ADS-B Poller</text>
+  <text x="259" y="130" fill="#8b949e" font-family="'Cascadia Code','Consolas',monospace" font-size="8" text-anchor="middle">(5 min)</text>
+
+  <line x1="324" y1="122" x2="350" y2="122" stroke="#c9d1d9" stroke-width="1" marker-end="url(#arrow-white)"/>
+
+  <rect x="352" y="100" width="130" height="44" rx="4" fill="none" stroke="#4a8cc7" stroke-width="1"/>
+  <text x="417" y="117" fill="#c9d1d9" font-family="'Cascadia Code','Consolas',monospace" font-size="9" text-anchor="middle">flight_states</text>
+  <text x="417" y="130" fill="#8b949e" font-family="'Cascadia Code','Consolas',monospace" font-size="8" text-anchor="middle">table</text>
+
+  <!-- OSINT pipeline (right column) -->
+  <rect x="668" y="48" width="130" height="44" rx="4" fill="none" stroke="#4a8cc7" stroke-width="1"/>
+  <text x="733" y="65" fill="#c9d1d9" font-family="'Cascadia Code','Consolas',monospace" font-size="9" text-anchor="middle">21 RSS Sources</text>
+  <text x="733" y="78" fill="#8b949e" font-family="'Cascadia Code','Consolas',monospace" font-size="8" text-anchor="middle">BBC · AJ · DefNews</text>
+
+  <line x1="733" y1="92" x2="733" y2="98" stroke="#c9d1d9" stroke-width="1" marker-end="url(#arrow-white)"/>
+
+  <rect x="668" y="100" width="130" height="44" rx="4" fill="none" stroke="#4a8cc7" stroke-width="1"/>
+  <text x="733" y="117" fill="#c9d1d9" font-family="'Cascadia Code','Consolas',monospace" font-size="9" text-anchor="middle">OSINT Ingestor</text>
+  <text x="733" y="130" fill="#8b949e" font-family="'Cascadia Code','Consolas',monospace" font-size="8" text-anchor="middle">intel_articles table</text>
+
+  <!-- ============================================================= -->
+  <!--  CENTRAL DATABASE                                               -->
+  <!-- ============================================================= -->
+  <!-- Database cylinder shape -->
+  <g transform="translate(380, 180)">
+    <rect x="0" y="6" width="220" height="38" rx="3" fill="#2a1a00" stroke="#d4883a" stroke-width="1.2"/>
+    <ellipse cx="110" cy="6" rx="110" ry="10" fill="#2a1a00" stroke="#d4883a" stroke-width="1.2"/>
+    <ellipse cx="110" cy="44" rx="110" ry="10" fill="none" stroke="#d4883a" stroke-width="1.2"/>
+    <text x="110" y="30" fill="#d4883a" font-family="'Segoe UI',sans-serif" font-size="11" font-weight="700" text-anchor="middle">PostgreSQL 16 + PostGIS 3.4</text>
+  </g>
+
+  <!-- Arrows from Layer 1 down to DB -->
+  <line x1="575" y1="92" x2="575" y2="168" stroke="#d4883a" stroke-width="1" stroke-dasharray="3,2"/>
+  <line x1="575" y1="168" x2="540" y2="168" stroke="#d4883a" stroke-width="1" stroke-dasharray="3,2"/>
+  <line x1="540" y1="168" x2="540" y2="180" stroke="#d4883a" stroke-width="1" marker-end="url(#arrow-orange)"/>
+
+  <line x1="417" y1="144" x2="417" y2="168" stroke="#d4883a" stroke-width="1" stroke-dasharray="3,2"/>
+  <line x1="417" y1="168" x2="470" y2="168" stroke="#d4883a" stroke-width="1" stroke-dasharray="3,2"/>
+  <line x1="470" y1="168" x2="470" y2="180" stroke="#d4883a" stroke-width="1" marker-end="url(#arrow-orange)"/>
+
+  <line x1="733" y1="144" x2="733" y2="168" stroke="#d4883a" stroke-width="1" stroke-dasharray="3,2"/>
+  <line x1="733" y1="168" x2="560" y2="168" stroke="#d4883a" stroke-width="1" stroke-dasharray="3,2"/>
+  <line x1="560" y1="168" x2="560" y2="180" stroke="#d4883a" stroke-width="1" marker-end="url(#arrow-orange)"/>
+
+  <!-- ============================================================= -->
+  <!--  BAND 2 — MODEL INFERENCE                                       -->
+  <!-- ============================================================= -->
+  <rect x="20" y="244" width="860" height="106" rx="6" fill="url(#band2-grad)" stroke="#1a3a2a" stroke-width="1" stroke-opacity="0.4"/>
+  <text x="36" y="262" fill="#3fb950" font-family="'Segoe UI',sans-serif" font-size="11" font-weight="700" letter-spacing="1.5">LAYER 2 — MODEL INFERENCE (ONNX Runtime)</text>
+
+  <!-- Arrows from DB down -->
+  <line x1="490" y1="234" x2="490" y2="240" stroke="#d4883a" stroke-width="1" marker-end="url(#arrow-orange)"/>
+
+  <!-- SiameseUNet -->
+  <rect x="36" y="272" width="250" height="64" rx="4" fill="none" stroke="#3a7a4a" stroke-width="1"/>
+  <text x="161" y="290" fill="#c9d1d9" font-family="'Segoe UI',sans-serif" font-size="11" font-weight="700" text-anchor="middle">SiameseUNet ONNX</text>
+  <text x="161" y="304" fill="#8b949e" font-family="'Cascadia Code','Consolas',monospace" font-size="8" text-anchor="middle">(I₁, I₂) tile pairs → change mask P∈[0,1]</text>
+  <text x="161" y="318" fill="#3fb950" font-family="'Cascadia Code','Consolas',monospace" font-size="9" font-weight="700" text-anchor="middle">IoU = 0.8243</text>
+
+  <!-- ConvNeXt -->
+  <rect x="310" y="272" width="250" height="64" rx="4" fill="none" stroke="#3a7a4a" stroke-width="1"/>
+  <text x="435" y="290" fill="#c9d1d9" font-family="'Segoe UI',sans-serif" font-size="11" font-weight="700" text-anchor="middle">ConvNeXt Small ONNX</text>
+  <text x="435" y="304" fill="#8b949e" font-family="'Cascadia Code','Consolas',monospace" font-size="8" text-anchor="middle">aircraft crop → class + confidence</text>
+  <text x="435" y="318" fill="#3fb950" font-family="'Cascadia Code','Consolas',monospace" font-size="9" font-weight="700" text-anchor="middle">68.57% acc | F1 0.72</text>
+
+  <!-- YOLOv8n -->
+  <rect x="584" y="272" width="250" height="64" rx="4" fill="none" stroke="#3a7a4a" stroke-width="1"/>
+  <text x="709" y="290" fill="#c9d1d9" font-family="'Segoe UI',sans-serif" font-size="11" font-weight="700" text-anchor="middle">YOLOv8n ONNX</text>
+  <text x="709" y="304" fill="#8b949e" font-family="'Cascadia Code','Consolas',monospace" font-size="8" text-anchor="middle">scene image → bounding boxes</text>
+  <text x="709" y="318" fill="#8b949e" font-family="'Cascadia Code','Consolas',monospace" font-size="9" text-anchor="middle">COCO pretrained (beta)</text>
+
+  <!-- ============================================================= -->
+  <!--  BAND 3 — INTELLIGENCE SYNTHESIS                                -->
+  <!-- ============================================================= -->
+  <rect x="20" y="366" width="860" height="106" rx="6" fill="url(#band3-grad)" stroke="#2d1b4e" stroke-width="1" stroke-opacity="0.4"/>
+  <text x="36" y="384" fill="#bc8cff" font-family="'Segoe UI',sans-serif" font-size="11" font-weight="700" letter-spacing="1.5">LAYER 3 — INTELLIGENCE SYNTHESIS</text>
+
+  <!-- Arrows from models to intel -->
+  <line x1="161" y1="336" x2="161" y2="392" stroke="#c9d1d9" stroke-width="1" marker-end="url(#arrow-white)"/>
+  <line x1="435" y1="336" x2="435" y2="392" stroke="#c9d1d9" stroke-width="1" marker-end="url(#arrow-white)"/>
+  <line x1="709" y1="336" x2="709" y2="392" stroke="#c9d1d9" stroke-width="1" marker-end="url(#arrow-white)"/>
+
+  <!-- Event Engine -->
+  <rect x="36" y="394" width="250" height="64" rx="4" fill="none" stroke="#6a3d99" stroke-width="1"/>
+  <text x="161" y="412" fill="#c9d1d9" font-family="'Segoe UI',sans-serif" font-size="11" font-weight="700" text-anchor="middle">Event Engine</text>
+  <text x="161" y="426" fill="#8b949e" font-family="'Cascadia Code','Consolas',monospace" font-size="8" text-anchor="middle">Temporal Baselines → Tiered Alerts</text>
+  <text x="161" y="440" fill="#bc8cff" font-family="'Cascadia Code','Consolas',monospace" font-size="8" text-anchor="middle">NEW_OBJECT | ELEVATED | SURGE</text>
+
+  <!-- OSINT Geo-Tagger -->
+  <rect x="310" y="394" width="250" height="64" rx="4" fill="none" stroke="#6a3d99" stroke-width="1"/>
+  <text x="435" y="412" fill="#c9d1d9" font-family="'Segoe UI',sans-serif" font-size="11" font-weight="700" text-anchor="middle">OSINT Geo-Tagger</text>
+  <text x="435" y="426" fill="#8b949e" font-family="'Cascadia Code','Consolas',monospace" font-size="8" text-anchor="middle">3-Pass Scoring → site_id</text>
+  <text x="435" y="440" fill="#bc8cff" font-family="'Cascadia Code','Consolas',monospace" font-size="8" text-anchor="middle">24.7% match rate</text>
+
+  <!-- Site Aggregator -->
+  <rect x="584" y="394" width="250" height="64" rx="4" fill="none" stroke="#6a3d99" stroke-width="1"/>
+  <text x="709" y="412" fill="#c9d1d9" font-family="'Segoe UI',sans-serif" font-size="11" font-weight="700" text-anchor="middle">Site Aggregator</text>
+  <text x="709" y="426" fill="#8b949e" font-family="'Cascadia Code','Consolas',monospace" font-size="8" text-anchor="middle">18 Sites → aoi_daily_counts</text>
+  <text x="709" y="440" fill="#bc8cff" font-family="'Cascadia Code','Consolas',monospace" font-size="8" text-anchor="middle">ADS-B baselines</text>
+
+  <!-- ============================================================= -->
+  <!--  BAND 4 — VISUALISATION                                         -->
+  <!-- ============================================================= -->
+  <rect x="20" y="486" width="860" height="90" rx="6" fill="url(#band4-grad)" stroke="#3a1a1a" stroke-width="1" stroke-opacity="0.4"/>
+  <text x="36" y="504" fill="#f47067" font-family="'Segoe UI',sans-serif" font-size="11" font-weight="700" letter-spacing="1.5">LAYER 4 — VISUALISATION</text>
+
+  <!-- Arrows from intel to viz -->
+  <line x1="161" y1="458" x2="161" y2="510" stroke="#c9d1d9" stroke-width="1" marker-end="url(#arrow-white)"/>
+  <line x1="435" y1="458" x2="435" y2="510" stroke="#c9d1d9" stroke-width="1" marker-end="url(#arrow-white)"/>
+  <line x1="709" y1="458" x2="709" y2="510" stroke="#c9d1d9" stroke-width="1" marker-end="url(#arrow-white)"/>
+
+  <!-- Next.js Dashboard strip -->
+  <text x="450" y="524" fill="#c9d1d9" font-family="'Segoe UI',sans-serif" font-size="11" font-weight="700" text-anchor="middle">Next.js 14 Dashboard</text>
+
+  <!-- Sub-components -->
+  <rect x="36" y="532" width="190" height="34" rx="3" fill="none" stroke="#7a3333" stroke-width="1"/>
+  <text x="131" y="548" fill="#c9d1d9" font-family="'Cascadia Code','Consolas',monospace" font-size="8" text-anchor="middle">Global Activity Map</text>
+  <text x="131" y="560" fill="#8b949e" font-family="'Cascadia Code','Consolas',monospace" font-size="7" text-anchor="middle">MapLibre GL · 18 sites</text>
+
+  <rect x="240" y="532" width="190" height="34" rx="3" fill="none" stroke="#7a3333" stroke-width="1"/>
+  <text x="335" y="548" fill="#c9d1d9" font-family="'Cascadia Code','Consolas',monospace" font-size="8" text-anchor="middle">Site Detail Panel</text>
+  <text x="335" y="560" fill="#8b949e" font-family="'Cascadia Code','Consolas',monospace" font-size="7" text-anchor="middle">Events · Baselines · Timeline</text>
+
+  <rect x="444" y="532" width="190" height="34" rx="3" fill="none" stroke="#7a3333" stroke-width="1"/>
+  <text x="539" y="548" fill="#c9d1d9" font-family="'Cascadia Code','Consolas',monospace" font-size="8" text-anchor="middle">Intel Feed</text>
+  <text x="539" y="560" fill="#8b949e" font-family="'Cascadia Code','Consolas',monospace" font-size="7" text-anchor="middle">OSINT · Geo-tagged articles</text>
+
+  <rect x="648" y="532" width="190" height="34" rx="3" fill="none" stroke="#7a3333" stroke-width="1"/>
+  <text x="743" y="548" fill="#c9d1d9" font-family="'Cascadia Code','Consolas',monospace" font-size="8" text-anchor="middle">Aircraft Intelligence</text>
+  <text x="743" y="560" fill="#8b949e" font-family="'Cascadia Code','Consolas',monospace" font-size="7" text-anchor="middle">Classify · GradCAM · F/F</text>
+
+  <!-- ============================================================= -->
+  <!--  DEPLOYMENT ANNOTATION (right side)                             -->
+  <!-- ============================================================= -->
+  <text x="870" y="300" fill="#484f58" font-family="'Cascadia Code','Consolas',monospace" font-size="7" text-anchor="middle" transform="rotate(90, 870, 300)">ONNX Runtime (no PyTorch) │ INT8 quantized 81 MB │ 512 MB free-tier</text>
+
+  <!-- ============================================================= -->
+  <!--  CAPTION                                                        -->
+  <!-- ============================================================= -->
+  <text x="450" y="600" fill="#8b949e" font-family="'Segoe UI',sans-serif" font-size="10" font-style="italic" text-anchor="middle">Fig. 1 — Aether-Eye System Architecture · Data flows top-to-bottom from ingestion through inference and intelligence synthesis to the operator dashboard.</text>
+
+</svg>

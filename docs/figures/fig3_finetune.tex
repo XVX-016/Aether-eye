@@ -1,0 +1,98 @@
+\documentclass[tikz,border=8pt]{standalone}
+
+% ---------- Packages ----------
+\usepackage[T1]{fontenc}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, shapes, positioning, calc,
+                patterns, decorations.pathrounding, fit}
+
+% ---------- Styles ----------
+\tikzstyle{frozen}  = [rectangle, rounded corners=2pt, draw=gray!60, fill=gray!20,
+  minimum width=3cm, minimum height=0.8cm,
+  font=\small, align=center, text=black]
+
+\tikzstyle{trainable} = [rectangle, rounded corners=2pt, draw=blue!70, fill=blue!20,
+  minimum width=3cm, minimum height=0.8cm,
+  font=\small\bfseries, align=center, text=black]
+
+\tikzstyle{badblock}  = [rectangle, rounded corners=2pt, draw=red!70, fill=red!15,
+  minimum width=3cm, minimum height=0.8cm,
+  font=\small, align=center, text=black]
+
+\tikzstyle{goodblock} = [rectangle, rounded corners=2pt, draw=green!60!black, fill=green!15,
+  minimum width=3cm, minimum height=0.8cm,
+  font=\small, align=center, text=black]
+
+\tikzstyle{resultbadge} = [rectangle, rounded corners=2pt,
+  minimum width=3cm, minimum height=0.5cm,
+  font=\footnotesize\bfseries, align=center]
+
+\tikzstyle{phaselabel} = [font=\small\bfseries\sffamily, 
+  draw=none, fill=none]
+
+\begin{document}
+\begin{tikzpicture}[node distance=0.5cm]
+
+  % COLUMN 1 (x=-5) — Phase 1 Head-Only
+  \node[phaselabel] at (-5, 5.5) {\textbf{Phase 1}: Head-Only (10 epochs)};
+  
+  \node[frozen] (bk1) at (-5, 4.8) {ConvNeXt Backbone\\(frozen \textbullet)};
+  \node[trainable] (hd1) at (-5, 3.9) {Classification Head\\Linear(768$\rightarrow$98)};
+  
+  \draw[dashed, thick, gray!60] (-6.8, 4.35) -- (-3.2, 4.35);
+  \node[font=\tiny, blue!70!black] at (-5, 3.5) {lr $= 1\times10^{-3}$, AdamW};
+  
+  \node[resultbadge, draw=green!60!black, fill=green!10] (r1) at (-5, 3.0) {\color{green!50!black}Best: 11.25\% val\_acc};
+  \draw[-{Stealth}, thick, gray] (bk1) -- (hd1);
+
+  % COLUMN 2 (x=0) — Problem: Uniform LR
+  \node[phaselabel, red!70!black] at (0, 5.5) {\textbf{Phase 2 Failure}: Uniform LR};
+  
+  \node[badblock] (bk2) at (0, 4.8) {Backbone\\lr $= 5\times10^{-5}$};
+  \node[badblock] (hd2) at (0, 3.9) {Head\\lr $= 5\times10^{-5}$};
+  
+  \node[font=\small\bfseries, red!60!black] at (0, 4.35) {$=$ same LR};
+  
+  \node[resultbadge, draw=red!70!black, fill=red!10] (r2) at (0, 3.0) {\color{red!70!black}$\downarrow$ 7.5\% acc at Epoch 1};
+  \node[font=\tiny, red!60!black] at (0, 2.65) {Catastrophic forgetting};
+  \draw[-{Stealth}, thick, gray] (bk2) -- (hd2);
+
+  % COLUMN 3 (x=5) — Solution: Layer-wise LR
+  \node[phaselabel, green!50!black] at (5, 5.5) {\textbf{Phase 2 Solution}: Layer-wise LR};
+  
+  \node[goodblock] (bk3) at (5, 4.8) {Backbone\\lr $= 5\times10^{-6}$ (conservative)};
+  \node[trainable] (hd3) at (5, 3.9) {Head\\lr $= 5\times10^{-5}$ (10$\times$ higher)};
+  
+  \draw[{Stealth}-{Stealth}, thick, orange!70!black] (5.1, 4.55) -- (5.1, 4.2)
+    node[right=2pt, midway, font=\tiny, orange!70!black] {10$\times$};
+  
+  \node[resultbadge, draw=green!60!black, fill=green!10] (r3) at (5, 3.0) {\color{green!50!black}68.57\% val\_acc (Epoch 48)};
+  \draw[-{Stealth}, thick, gray] (bk3) -- (hd3);
+
+  % BOTTOM — Accuracy trajectory bar
+  \node[font=\footnotesize\bfseries, text=black] at (-2.3, 2.0) {Accuracy Progression (Phase 2 Solution):};
+  
+  \draw[thick, gray] (-5, 1.5) -- (5, 1.5);  % baseline
+  
+  \foreach \x/\h/\lbl in {
+    -4/0.16/Ph1 end\\11.25\%,
+    -1/0.51/Ep 12\\51.05\%,
+     2/0.66/Ep 29\\66.05\%,
+     4.5/0.69/Ep 48\\68.57\%}{
+    \fill[blue!50] (\x, 1.5) rectangle (\x+0.6, 1.5+\h*2);
+    \node[font=\tiny, align=center] at (\x+0.3, 1.25) {\lbl};
+  }
+  
+  % Y axis label
+  \node[font=\tiny, rotate=90, text=gray!80!black] at (-5.5, 2.1) {Val Acc};
+
+  % VERTICAL SEPARATORS
+  \draw[dashed, gray!50] (-2.5, 5.8) -- (-2.5, 1.0);
+  \draw[dashed, gray!50] (2.5, 5.8) -- (2.5, 1.0);
+
+  % CAPTION
+  \node[font=\footnotesize\itshape, text=black!70] at (0, 0.4)
+    {Fig.~3 --- Two-phase fine-tuning. Uniform LR causes catastrophic forgetting; 10$\times$ layer-wise ratio recovers performance.};
+
+\end{tikzpicture}
+\end{document}

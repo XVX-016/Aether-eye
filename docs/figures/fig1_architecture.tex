@@ -1,0 +1,197 @@
+\documentclass[tikz,border=5pt]{standalone}
+
+% ---------- Packages ----------
+\usepackage[T1]{fontenc}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, shapes.geometric, fit, backgrounds,
+                positioning, calc, decorations.pathrounding}
+
+% ---------- Custom Styles ----------
+
+% Data source box (Layer 1 — blue)
+\tikzstyle{datasrc} = [rectangle, rounded corners=3pt,
+  minimum width=2.8cm, minimum height=0.7cm,
+  draw=blue!60!black, fill=blue!10,
+  font=\small\ttfamily, align=center, text=black]
+
+% Model box (Layer 2 — green)
+\tikzstyle{modelbox} = [rectangle, rounded corners=3pt,
+  minimum width=3cm, minimum height=0.8cm,
+  draw=green!50!black, fill=green!10,
+  font=\small\bfseries, align=center, text=black]
+
+% Intel box (Layer 3 — purple)
+\tikzstyle{intelbox} = [rectangle, rounded corners=3pt,
+  minimum width=3cm, minimum height=0.7cm,
+  draw=purple!60!black, fill=purple!10,
+  font=\small, align=center, text=black]
+
+% Viz box (Layer 4 — red)
+\tikzstyle{vizbox} = [rectangle, rounded corners=3pt,
+  minimum width=3cm, minimum height=0.7cm,
+  draw=red!60!black, fill=red!10,
+  font=\small, align=center, text=black]
+
+% Layer band label
+\tikzstyle{bandlabel} = [rectangle, rounded corners=2pt, fill=gray!20,
+  draw=gray!50, font=\footnotesize\bfseries\sffamily,
+  minimum width=1.8cm, align=center, inner sep=3pt]
+
+% Arrow styles
+\tikzstyle{arr} = [-{Stealth[length=4pt]}, thick, gray!70]
+\tikzstyle{darr} = [-{Stealth[length=4pt]}, thick, black!70]
+\tikzstyle{dbarr} = [-{Stealth[length=4pt]}, thick, orange!70!black]
+
+\begin{document}
+\begin{tikzpicture}[node distance=0.5cm]
+
+% =====================================================================
+%  LAYER 1 — DATA INGESTION
+% =====================================================================
+\node[bandlabel] (L1label) at (-6.2, 5) {LAYER 1\\DATA\\INGESTION};
+
+% --- Satellite pipeline (top row) ---
+\node[datasrc] (A1) at (-4.2, 6) {Copernicus STAC\\Sentinel-2 L2A};
+\node[datasrc] (A2) at (-0.8, 6) {STAC Watcher\\{\scriptsize (6\,hr schedule)}};
+\node[datasrc] (A3) at (2.6,  6) {Scene Processor\\GeoTIFF Tiler};
+\node[datasrc] (A4) at (6.0,  6) {512$\times$512 tiles\\{\scriptsize (rasterio)}};
+
+\draw[arr] (A1) -- (A2);
+\draw[arr] (A2) -- (A3);
+\draw[arr] (A3) -- (A4);
+
+% --- ADS-B pipeline (middle row) ---
+\node[datasrc] (B1) at (-4.2, 4.8) {OpenSky Network\\ADS-B API};
+\node[datasrc] (B2) at (-0.8, 4.8) {Flight Poller\\{\scriptsize (5\,min)}};
+\node[datasrc] (B3) at (2.6,  4.8) {flight\_states\\table};
+
+\draw[arr] (B1) -- (B2);
+\draw[arr] (B2) -- (B3);
+
+% --- OSINT pipeline (bottom row) ---
+\node[datasrc] (C1) at (-4.2, 3.6) {21 RSS Sources\\{\scriptsize BBC\,\textperiodcentered\,AJ\,\textperiodcentered\,DefNews}};
+\node[datasrc] (C2) at (-0.8, 3.6) {OSINT Ingestor\\{\scriptsize (30\,min)}};
+\node[datasrc] (C3) at (2.6,  3.6) {intel\_articles\\table};
+
+\draw[arr] (C1) -- (C2);
+\draw[arr] (C2) -- (C3);
+
+% --- Layer 1 background band ---
+\begin{scope}[on background layer]
+  \node[draw=blue!40!black, dashed, rounded corners=6pt,
+        fill=blue!4, inner sep=8pt,
+        fit=(A1)(A4)(C1)(C3)] (L1band) {};
+\end{scope}
+
+% =====================================================================
+%  CENTRAL DATABASE
+% =====================================================================
+\node[cylinder, shape border rotate=90,
+      draw=orange!80!black, fill=orange!15,
+      minimum width=3.6cm, minimum height=0.9cm,
+      font=\small\bfseries, align=center,
+      aspect=0.2] (DB) at (1.0, 2.4)
+      {PostgreSQL 16 + PostGIS 3.4};
+
+% Arrows from Layer 1 down into DB
+\draw[dbarr] (A4.south) -- ++(0,-0.4) -| (DB.20);
+\draw[dbarr] (B3.south) -- ++(0,-0.3) -| (DB.160);
+\draw[dbarr] (C3.south) -- ++(0,-0.2) -| (DB.170);
+
+% =====================================================================
+%  LAYER 2 — MODEL INFERENCE
+% =====================================================================
+\node[bandlabel] (L2label) at (-6.2, 1.0) {LAYER 2\\MODEL\\INFERENCE};
+
+\node[modelbox] (M1) at (-3.2, 0.9) {SiameseUNet ONNX\\Change Detection\\{\scriptsize IoU\,=\,0.8243}};
+\node[modelbox] (M2) at ( 1.0, 0.9) {ConvNeXt Small ONNX\\Aircraft Classify\\{\scriptsize 68.57\%\,acc\,|\,F1\,0.72}};
+\node[modelbox] (M3) at ( 5.2, 0.9) {YOLOv8n ONNX\\Aircraft Detection\\{\scriptsize COCO pretrained}};
+
+% Input/output micro-labels
+\node[font=\scriptsize\ttfamily, text=gray!70!black, anchor=south]
+  at (M1.north) {$(I_1, I_2)$ tile pairs $\rightarrow$ mask $P\!\in\![0,1]$};
+\node[font=\scriptsize\ttfamily, text=gray!70!black, anchor=south]
+  at (M2.north) {aircraft crop $\rightarrow$ class + conf};
+\node[font=\scriptsize\ttfamily, text=gray!70!black, anchor=south]
+  at (M3.north) {scene image $\rightarrow$ bboxes};
+
+% Arrows from DB down to models — fan-out
+\draw[dbarr] (DB.south) -- ++(0,-0.3) coordinate (dbfan);
+\draw[dbarr] (dbfan) -| ([yshift=2pt]M1.north);
+\draw[dbarr] (dbfan) -- ([yshift=2pt]M2.north);
+\draw[dbarr] (dbfan) -| ([yshift=2pt]M3.north);
+
+% --- Layer 2 background band ---
+\begin{scope}[on background layer]
+  \node[draw=green!40!black, dashed, rounded corners=6pt,
+        fill=green!4, inner sep=8pt,
+        fit=(M1)(M3)] (L2band) {};
+\end{scope}
+
+% =====================================================================
+%  LAYER 3 — INTELLIGENCE SYNTHESIS
+% =====================================================================
+\node[bandlabel] (L3label) at (-6.2, -1.0) {LAYER 3\\INTELLIGENCE\\SYNTHESIS};
+
+\node[intelbox] (I1) at (-3.2, -1.1) {Event Engine\\Temporal Baselines\\{\scriptsize NEW\,/\,ELEVATED\,/\,SURGE}};
+\node[intelbox] (I2) at ( 1.0, -1.1) {OSINT Geo-Tagger\\3-Pass Scoring\\{\scriptsize 24.7\%\,match rate}};
+\node[intelbox] (I3) at ( 5.2, -1.1) {Site Aggregator\\18 Global Sites\\{\scriptsize aoi\_daily\_counts}};
+
+% Arrows from models to intel
+\draw[arr] (M1.south) -- ([yshift=-2pt]I1.north);
+\draw[arr] (M2.south) -- ([yshift=-2pt]I2.north);
+\draw[arr] (M3.south) -- ([yshift=-2pt]I3.north);
+
+% --- Layer 3 background band ---
+\begin{scope}[on background layer]
+  \node[draw=purple!40!black, dashed, rounded corners=6pt,
+        fill=purple!4, inner sep=8pt,
+        fit=(I1)(I3)] (L3band) {};
+\end{scope}
+
+% =====================================================================
+%  LAYER 4 — VISUALISATION
+% =====================================================================
+\node[bandlabel] (L4label) at (-6.2, -2.8) {LAYER 4\\VISUALISATION};
+
+\node[vizbox] (V1) at (-3.2, -2.9) {Operations Dashboard\\{\scriptsize Next.js\,14 + MapLibre\,GL}\\{\scriptsize 18-site global map}};
+\node[vizbox] (V2) at ( 1.0, -2.9) {Aircraft Intelligence\\{\scriptsize Upload + GradCAM}\\{\scriptsize Friend/Foe tagging}};
+\node[vizbox] (V3) at ( 5.2, -2.9) {Change Intelligence\\{\scriptsize Before/After slider}\\{\scriptsize Region overlay}};
+
+% Arrows from intel to viz
+\draw[arr] (I1.south) -- ([yshift=-2pt]V1.north);
+\draw[arr] (I2.south) -- ([yshift=-2pt]V2.north);
+\draw[arr] (I3.south) -- ([yshift=-2pt]V3.north);
+
+% --- Layer 4 background band ---
+\begin{scope}[on background layer]
+  \node[draw=red!40!black, dashed, rounded corners=6pt,
+        fill=red!4, inner sep=8pt,
+        fit=(V1)(V3)] (L4band) {};
+\end{scope}
+
+% =====================================================================
+%  OUTER BORDER AND CAPTION
+% =====================================================================
+\begin{scope}[on background layer]
+  \node[draw=black!60, thick, rounded corners=8pt,
+        inner sep=14pt,
+        fit=(L1label)(L1band)(DB)(L2band)(L3band)(L4band)(L4label)] {};
+\end{scope}
+
+% Caption
+\node[font=\footnotesize\itshape, text=black!70, anchor=north]
+  at (1.0, -3.8)
+  {Fig.~1 --- Aether-Eye four-layer system architecture. Data flows
+   top-to-bottom from ingestion through inference and intelligence
+   synthesis to the operator dashboard.};
+
+% =====================================================================
+%  DEPLOYMENT ANNOTATION (right margin)
+% =====================================================================
+\node[font=\tiny\ttfamily, text=gray!60, anchor=west, align=left,
+      rotate=90] at (7.8, 2.4)
+  {ONNX Runtime (no PyTorch) | INT8 quantized 81\,MB | 512\,MB free-tier};
+
+\end{tikzpicture}
+\end{document}

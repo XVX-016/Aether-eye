@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 420" width="900" height="420" style="background-color: #ffffff;">
+  
+  <!-- LEFT PLOT: Change Detection IoU Curve -->
+  <g transform="translate(60, 40)">
+    <!-- Grid and Axes -->
+    <rect width="360" height="280" fill="none" stroke="#b0b0b0" stroke-width="1"/>
+    
+    <!-- Y-axis Gridlines (0.0 to 1.0) -->
+    <line x1="0" y1="280" x2="360" y2="280" stroke="#e5e5e5" stroke-width="1"/>
+    <line x1="0" y1="224" x2="360" y2="224" stroke="#e5e5e5" stroke-width="1"/>
+    <line x1="0" y1="168" x2="360" y2="168" stroke="#e5e5e5" stroke-width="1"/>
+    <line x1="0" y1="112" x2="360" y2="112" stroke="#e5e5e5" stroke-width="1"/>
+    <line x1="0" y1="56" x2="360" y2="56" stroke="#e5e5e5" stroke-width="1"/>
+    <line x1="0" y1="0" x2="360" y2="0" stroke="#e5e5e5" stroke-width="1"/>
+    
+    <!-- Y-axis Labels -->
+    <text x="-8" y="284" font-family="'Segoe UI',sans-serif" font-size="10" text-anchor="end">0.0</text>
+    <text x="-8" y="228" font-family="'Segoe UI',sans-serif" font-size="10" text-anchor="end">0.2</text>
+    <text x="-8" y="172" font-family="'Segoe UI',sans-serif" font-size="10" text-anchor="end">0.4</text>
+    <text x="-8" y="116" font-family="'Segoe UI',sans-serif" font-size="10" text-anchor="end">0.6</text>
+    <text x="-8" y="60" font-family="'Segoe UI',sans-serif" font-size="10" text-anchor="end">0.8</text>
+    <text x="-8" y="4" font-family="'Segoe UI',sans-serif" font-size="10" text-anchor="end">1.0</text>
+    
+    <!-- X-axis Labels (Epoch 0 to 49) -->
+    <text x="0" y="295" font-family="'Segoe UI',sans-serif" font-size="10" text-anchor="middle">0</text>
+    <text x="73.47" y="295" font-family="'Segoe UI',sans-serif" font-size="10" text-anchor="middle">10</text>
+    <text x="146.94" y="295" font-family="'Segoe UI',sans-serif" font-size="10" text-anchor="middle">20</text>
+    <text x="220.41" y="295" font-family="'Segoe UI',sans-serif" font-size="10" text-anchor="middle">30</text>
+    <text x="293.88" y="295" font-family="'Segoe UI',sans-serif" font-size="10" text-anchor="middle">40</text>
+    <text x="360.0" y="295" font-family="'Segoe UI',sans-serif" font-size="10" text-anchor="middle">49</text>
+    
+    <!-- Axis Titles -->
+    <text x="180" y="312" font-family="'Segoe UI',sans-serif" font-size="11" font-weight="600" text-anchor="middle">Epoch</text>
+    <text x="-40" y="140" font-family="'Segoe UI',sans-serif" font-size="11" font-weight="600" text-anchor="middle" transform="rotate(-90, -40, 140)">Validation IoU</text>
+    <text x="180" y="-15" font-family="'Segoe UI',sans-serif" font-size="11" font-weight="bold" text-anchor="middle">Change Detection Validation IoU vs Epoch</text>
+
+    <!-- Reference Baselines -->
+    <!-- FC-Siam-Conc (0.743) -->
+    <line x1="0" y1="71.96" x2="360" y2="71.96" stroke="#999999" stroke-width="1" stroke-dasharray="4,4"/>
+    <text x="355" y="68" font-family="'Segoe UI',sans-serif" font-size="8" fill="#555555" text-anchor="end">FC-Siam-Conc [1]: 0.743</text>
+    
+    <!-- ChangeFormer (0.823) -->
+    <line x1="0" y1="49.56" x2="360" y2="49.56" stroke="#999999" stroke-width="1" stroke-dasharray="4,4"/>
+    <text x="355" y="46" font-family="'Segoe UI',sans-serif" font-size="8" fill="#555555" text-anchor="end">ChangeFormer [3]: 0.823</text>
+
+    <!-- Test IoU: 0.8243 -->
+    <line x1="0" y1="49.20" x2="360" y2="49.20" stroke="#0055aa" stroke-width="1.2" stroke-dasharray="5,3"/>
+    <text x="10" y="44" font-family="'Segoe UI',sans-serif" font-size="8.5" font-weight="bold" fill="#0055aa" text-anchor="start">Test IoU: 0.8243</text>
+
+    <!-- Ablation Line 1: Config 1 (BCE-Dice) -->
+    <!-- Epoch 0: 0.1399 -> y = 280 - 0.1399*280 = 240.828 -->
+    <!-- Epoch 4: 0.3082 -> y = 280 - 0.3082*280 = 193.704 -->
+    <!-- Extrapolated slightly to show trend -->
+    <path d="M 0,240.83 Q 14.69,217.26 29.39,193.70 L 40,175.0" fill="none" stroke="#0066cc" stroke-width="1.5" stroke-dasharray="4,3"/>
+    
+    <!-- Ablation Line 2: Config 2 (Tversky+ResizeCrop) -->
+    <!-- Epoch 0: 0.0609 -> y = 262.948 -->
+    <!-- Epoch 4: 0.0873 -> y = 255.556 -->
+    <path d="M 0,262.95 L 29.39,255.56 L 40,253.0" fill="none" stroke="#cc3333" stroke-width="1.5" stroke-dasharray="4,3"/>
+
+    <!-- Config 3 SELECTED Curve (Full 50 epochs) -->
+    <!-- x_scale = 360/49 = 7.347 per epoch -->
+    <!-- coordinates: 
+      (0, 0.3175) -> (0, 191.1)
+      (1, 0.6307) -> (7.35, 103.4)
+      (2, 0.7117) -> (14.69, 80.7)
+      (4, 0.7193) -> (29.39, 78.6)
+      (7, 0.6619) -> (51.43, 94.7)
+      (8, 0.7523) -> (58.78, 69.4)
+      (9, 0.7686) -> (66.12, 64.8)
+      (16, 0.7527) -> (117.55, 69.2)
+      (17, 0.7694) -> (124.90, 64.6)
+      (20, 0.7722) -> (146.94, 63.8)
+      (22, 0.7734) -> (161.63, 63.4)
+      (27, 0.7812) -> (198.37, 61.3)
+      (31, 0.7895) -> (227.76, 58.9)
+      (36, 0.7880) -> (264.49, 59.4)
+      (40, 0.7835) -> (293.88, 60.6)
+      (41, 0.7845) -> (301.22, 60.3)
+      (46, 0.7838) -> (337.96, 60.5)
+      (47, 0.7936) -> (345.31, 57.8)  <-- BEST
+      (49, 0.7887) -> (360.00, 59.2)
+    -->
+    <path d="M 0.0,191.1 L 7.3,103.4 L 14.7,80.7 L 29.4,78.6 L 51.4,94.7 L 58.8,69.4 L 66.1,64.8 L 117.6,69.2 L 124.9,64.6 L 146.9,63.8 L 161.6,63.4 L 198.4,61.3 L 227.8,58.9 L 264.5,59.4 L 293.9,60.6 L 301.2,60.3 L 338.0,60.5 L 345.3,57.8 L 360.0,59.2" fill="none" stroke="#228b22" stroke-width="2.5"/>
+    
+    <!-- Dots for Config 3 -->
+    <circle cx="0.0" cy="191.1" r="3" fill="#228b22"/>
+    <circle cx="7.3" cy="103.4" r="3" fill="#228b22"/>
+    <circle cx="14.7" cy="80.7" r="3" fill="#228b22"/>
+    <circle cx="29.4" cy="78.6" r="3" fill="#228b22"/>
+    <circle cx="51.4" cy="94.7" r="3" fill="#228b22"/>
+    <circle cx="58.8" cy="69.4" r="3" fill="#228b22"/>
+    <circle cx="66.1" cy="64.8" r="3" fill="#228b22"/>
+    <circle cx="117.6" cy="69.2" r="3" fill="#228b22"/>
+    <circle cx="124.9" cy="64.6" r="3" fill="#228b22"/>
+    <circle cx="146.9" cy="63.8" r="3" fill="#228b22"/>
+    <circle cx="161.6" cy="63.4" r="3" fill="#228b22"/>
+    <circle cx="198.4" cy="61.3" r="3" fill="#228b22"/>
+    <circle cx="227.8" cy="58.9" r="3" fill="#228b22"/>
+    <circle cx="264.5" cy="59.4" r="3" fill="#228b22"/>
+    <circle cx="293.9" cy="60.6" r="3" fill="#228b22"/>
+    <circle cx="301.2" cy="60.3" r="3" fill="#228b22"/>
+    <circle cx="338.0" cy="60.5" r="3" fill="#228b22"/>
+    
+    <!-- Star Marker at Best -->
+    <!-- (345.31, 57.8) -->
+    <path d="M 345.3,51.8 L 347.1,55.4 L 351.1,56.0 L 348.2,58.8 L 348.9,62.8 L 345.3,60.9 L 341.7,62.8 L 342.4,58.8 L 339.5,56.0 L 343.5,55.4 Z" fill="#e5a93b" stroke="#228b22" stroke-width="0.8"/>
+    <text x="345" y="47" font-family="'Segoe UI',sans-serif" font-size="9.5" font-weight="bold" fill="#228b22" text-anchor="middle">Best: 0.7936</text>
+
+    <!-- Legend (Upper Left) -->
+    <rect x="10" y="165" width="180" height="65" fill="#ffffff" fill-opacity="0.9" stroke="#b0b0b0" stroke-width="0.8"/>
+    
+    <line x1="20" y1="178" x2="35" y2="178" stroke="#228b22" stroke-width="2.5"/>
+    <text x="43" y="181" font-family="'Segoe UI',sans-serif" font-size="9" fill="#000">Config 3: Hybrid Tversky (selected)</text>
+    
+    <line x1="20" y1="196" x2="35" y2="196" stroke="#0066cc" stroke-width="1.5" stroke-dasharray="3,2"/>
+    <text x="43" y="199" font-family="'Segoe UI',sans-serif" font-size="9" fill="#000">Config 1: BCE-Dice</text>
+    
+    <line x1="20" y1="214" x2="35" y2="214" stroke="#cc3333" stroke-width="1.5" stroke-dasharray="3,2"/>
+    <text x="43" y="217" font-family="'Segoe UI',sans-serif" font-size="9" fill="#000">Config 2: Tversky+ResizeCrop (unstable)</text>
+  </g>
+
+  <!-- RIGHT PLOT: Aircraft Classifier Accuracy Curve -->
+  <g transform="translate(500, 40)">
+    <!-- Grid and Axes -->
+    <rect width="360" height="280" fill="none" stroke="#b0b0b0" stroke-width="1"/>
+    
+    <!-- Y-axis Gridlines (0% to 80%) -->
+    <!-- y_scale = 280/80 = 3.5 per % -->
+    <line x1="0" y1="280" x2="360" y2="280" stroke="#e5e5e5" stroke-width="1"/>
+    <line x1="0" y1="210" x2="360" y2="210" stroke="#e5e5e5" stroke-width="1"/>
+    <line x1="0" y1="140" x2="360" y2="140" stroke="#e5e5e5" stroke-width="1"/>
+    <line x1="0" y1="70" x2="360" y2="70" stroke="#e5e5e5" stroke-width="1"/>
+    <line x1="0" y1="0" x2="360" y2="0" stroke="#e5e5e5" stroke-width="1"/>
+    
+    <!-- Y-axis Labels -->
+    <text x="-8" y="284" font-family="'Segoe UI',sans-serif" font-size="10" text-anchor="end">0%</text>
+    <text x="-8" y="214" font-family="'Segoe UI',sans-serif" font-size="10" text-anchor="end">20%</text>
+    <text x="-8" y="144" font-family="'Segoe UI',sans-serif" font-size="10" text-anchor="end">40%</text>
+    <text x="-8" y="74" font-family="'Segoe UI',sans-serif" font-size="10" text-anchor="end">60%</text>
+    <text x="-8" y="4" font-family="'Segoe UI',sans-serif" font-size="10" text-anchor="end">80%</text>
+    
+    <!-- X-axis Labels (Epoch 0 to 50) -->
+    <!-- x_scale = 360/50 = 7.2 per epoch -->
+    <text x="0" y="295" font-family="'Segoe UI',sans-serif" font-size="10" text-anchor="middle">0</text>
+    <text x="72" y="295" font-family="'Segoe UI',sans-serif" font-size="10" text-anchor="middle">10</text>
+    <text x="144" y="295" font-family="'Segoe UI',sans-serif" font-size="10" text-anchor="middle">20</text>
+    <text x="216" y="295" font-family="'Segoe UI',sans-serif" font-size="10" text-anchor="middle">30</text>
+    <text x="288" y="295" font-family="'Segoe UI',sans-serif" font-size="10" text-anchor="middle">40</text>
+    <text x="360" y="295" font-family="'Segoe UI',sans-serif" font-size="10" text-anchor="middle">50</text>
+    
+    <!-- Axis Titles -->
+    <text x="180" y="312" font-family="'Segoe UI',sans-serif" font-size="11" font-weight="600" text-anchor="middle">Epoch (Phase 2)</text>
+    <text x="-40" y="140" font-family="'Segoe UI',sans-serif" font-size="11" font-weight="600" text-anchor="middle" transform="rotate(-90, -40, 140)">Validation Accuracy</text>
+    <text x="180" y="-15" font-family="'Segoe UI',sans-serif" font-size="11" font-weight="bold" text-anchor="middle">Aircraft Classification Val Accuracy vs Epoch</text>
+
+    <!-- Reference Baselines -->
+    <!-- ResNet-50 FGVC (88.0%) - plotted slightly above top boundary at y=-28 -->
+    <!-- We will draw reference line at y=72.5% and y=88% -->
+    <line x1="0" y1="96.25" x2="360" y2="96.25" stroke="#999999" stroke-width="1" stroke-dasharray="4,4"/>
+    <text x="355" y="92.25" font-family="'Segoe UI',sans-serif" font-size="8.5" fill="#555555" text-anchor="end">Our v1 FGVC: 72.5%</text>
+
+    <line x1="0" y1="40" x2="360" y2="40" stroke="#aaaaaa" stroke-width="1.2" stroke-dasharray="3,3"/>
+    <text x="355" y="35" font-family="'Segoe UI',sans-serif" font-size="8.5" fill="#555555" text-anchor="end">ResNet-50 FGVC: 88.0%</text>
+
+    <!-- Phase 1 end target label -->
+    <line x1="0" y1="240.625" x2="60" y2="240.625" stroke="#cc3333" stroke-width="1" stroke-dasharray="2,2"/>
+    <text x="5" y="235" font-family="'Segoe UI',sans-serif" font-size="8" fill="#cc3333">Phase 1 end: 11.25%</text>
+
+    <!-- Best line at 68.57% -->
+    <line x1="0" y1="40.0" x2="345.6" y2="40.0" stroke="#228b22" stroke-width="1" stroke-dasharray="4,4"/>
+    
+    <!-- Plotting the Phase 2 trajectory:
+      (1, 7.51) -> (7.2, 253.7)
+      (2, 14.44) -> (14.4, 229.5)
+      (3, 19.32) -> (21.6, 212.4)
+      (4, 25.31) -> (28.8, 191.4)
+      (5, 27.60) -> (36.0, 183.4)
+      (6, 35.11) -> (43.2, 157.1)
+      (7, 37.67) -> (50.4, 148.2)
+      (8, 42.60) -> (57.6, 130.9)
+      (10, 45.88) -> (72.0, 119.4)
+      (11, 48.54) -> (79.2, 110.1)
+      (12, 51.05) -> (86.4, 101.3)
+      (20, 59.78) -> (144.0, 70.8)
+      (29, 66.05) -> (208.8, 48.8)
+      (48, 68.57) -> (345.6, 40.0)  <-- BEST
+    -->
+    <path d="M 7.2,253.7 L 14.4,229.5 L 21.6,212.4 L 28.8,191.4 L 36.0,183.4 L 43.2,157.1 L 50.4,148.2 L 57.6,130.9 L 72.0,119.4 L 79.2,110.1 L 86.4,101.3 L 144.0,70.8 L 208.8,48.8 L 345.6,40.0" fill="none" stroke="#0055aa" stroke-width="2.5"/>
+    
+    <!-- Dots for Phase 2 -->
+    <circle cx="7.2" cy="253.7" r="3" fill="#0055aa"/>
+    <circle cx="14.4" cy="229.5" r="3" fill="#0055aa"/>
+    <circle cx="21.6" cy="212.4" r="3" fill="#0055aa"/>
+    <circle cx="28.8" cy="191.4" r="3" fill="#0055aa"/>
+    <circle cx="36.0" cy="183.4" r="3" fill="#0055aa"/>
+    <circle cx="43.2" cy="157.1" r="3" fill="#0055aa"/>
+    <circle cx="50.4" cy="148.2" r="3" fill="#0055aa"/>
+    <circle cx="57.6" cy="130.9" r="3" fill="#0055aa"/>
+    <circle cx="72.0" cy="119.4" r="3" fill="#0055aa"/>
+    <circle cx="79.2" cy="110.1" r="3" fill="#0055aa"/>
+    <circle cx="86.4" cy="101.3" r="3" fill="#0055aa"/>
+    <circle cx="144.0" cy="70.8" r="3" fill="#0055aa"/>
+    <circle cx="208.8" cy="48.8" r="3" fill="#0055aa"/>
+
+    <!-- Star at Best -->
+    <path d="M 345.6,34.0 L 347.4,37.6 L 351.4,38.2 L 348.5,41.0 L 349.2,45.0 L 345.6,43.1 L 342.0,45.0 L 342.7,41.0 L 339.8,38.2 L 343.8,37.6 Z" fill="#e5a93b" stroke="#228b22" stroke-width="0.8"/>
+    <text x="345" y="29" font-family="'Segoe UI',sans-serif" font-size="9.5" font-weight="bold" fill="#228b22" text-anchor="middle">Best: 68.57%</text>
+
+    <!-- Legend (Upper Left) -->
+    <rect x="10" y="175" width="160" height="30" fill="#ffffff" fill-opacity="0.9" stroke="#b0b0b0" stroke-width="0.8"/>
+    <line x1="20" y1="188" x2="35" y2="188" stroke="#0055aa" stroke-width="2.5"/>
+    <text x="43" y="191" font-family="'Segoe UI',sans-serif" font-size="9" fill="#000">Phase 2: Full fine-tuning</text>
+
+    <!-- Dataset Difference Note -->
+    <text x="180" y="338" font-family="'Segoe UI',sans-serif" font-size="9" fill="#777777" text-anchor="middle" font-style="italic">† v2 trains on 98 military classes vs FGVC-Aircraft</text>
+  </g>
+
+  <!-- CAPTION -->
+  <text x="450" y="398" font-family="'Segoe UI',sans-serif" font-size="11" font-style="italic" text-anchor="middle">Fig. 4 — Training Convergence Curves. Change detection validation IoU (left) and aircraft classification accuracy (right).</text>
+
+</svg>
