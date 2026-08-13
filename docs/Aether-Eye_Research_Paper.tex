@@ -121,7 +121,7 @@
 \vspace{0.4cm}
 \begin{spacing}{1.0}
 \small
-Satellite-based surveillance of critical infrastructure remains prohibitively expensive and operationally inaccessible for resource-constrained organizations. Commercial imagery platforms such as Maxar and Planet require annual contracts exceeding \$50,000, while manual analyst review cannot scale across dozens of globally distributed sites. This paper presents Aether-Eye, an integrated satellite intelligence platform that combines automated Sentinel-2 scene ingestion via the SpatioTemporal Asset Catalog (STAC) API, deep learning change detection, fine-grained military aircraft classification, ADS-B flight activity tracking, and open-source intelligence (OSINT) correlation into a single unified pipeline. The system employs a SiameseUNet architecture for multi-temporal change detection, achieving a test Intersection-over-Union (IoU) of 0.8243 on paired building-change satellite tiles. A ConvNeXt Small classifier fine-tuned on a 98-class military aircraft dataset covering 34,718 training chips achieves 68.57\% top-1 validation accuracy using a novel two-phase transfer learning methodology with layer-wise learning rate scheduling. INT8 dynamic quantization compresses the combined model footprint from 314~MB to 81~MB (3.7--3.96$\times$ compression) with less than 1\% accuracy degradation, enabling deployment within 512~MB free-tier cloud RAM constraints. A three-pass scored geo-tagging algorithm correlates articles from 21 curated RSS sources to 18 globally monitored sites, achieving a 24.7\% article-to-site match rate. The complete system is deployable at zero recurring cost using Vercel, Render, and Supabase free tiers, demonstrating that the gap between research-grade machine learning and operationally deployable intelligence tools can be addressed through systematic integration of freely available satellite data, open-source models, and aggressive model compression.
+Satellite-based surveillance of critical infrastructure remains prohibitively expensive and operationally inaccessible for resource-constrained organizations. Commercial imagery platforms such as Maxar and Planet require annual contracts exceeding \$50,000, while manual analyst review cannot scale across dozens of globally distributed sites. This paper presents Aether-Eye, an integrated satellite intelligence platform that combines automated Sentinel-2 scene ingestion via the SpatioTemporal Asset Catalog (STAC) API, deep learning change detection, fine-grained military aircraft classification, ADS-B flight activity tracking, and open-source intelligence (OSINT) correlation into a single unified pipeline. The system employs a SiameseUNet architecture (Fig.~2) for multi-temporal change detection, achieving a test Intersection-over-Union (IoU) of 0.8243 on paired building-change satellite tiles. A ConvNeXt Small classifier (Fig.~3) fine-tuned on a 98-class military aircraft dataset covering 34,718 training chips achieves 68.57\% top-1 validation accuracy using a novel two-phase transfer learning methodology with layer-wise learning rate scheduling. INT8 dynamic quantization compresses the combined model footprint from 314~MB to 81~MB (3.7--3.96$\times$ compression) with less than 1\% accuracy degradation, enabling deployment within 512~MB free-tier cloud RAM constraints. A three-pass scored geo-tagging algorithm correlates articles from 21 curated RSS sources to 18 globally monitored sites, achieving a 24.7\% article-to-site match rate. The complete system is deployable at zero recurring cost using Vercel, Render, and Supabase free tiers, demonstrating that the gap between research-grade machine learning and operationally deployable intelligence tools can be addressed through systematic integration of freely available satellite data, open-source models, and aggressive model compression.
 \end{spacing}
 
 \vspace{0.5cm}
@@ -199,11 +199,58 @@ INT8 quantization is particularly attractive for deployment scenarios because it
 
 A practical constraint not typically addressed in the change detection or FGVC literature is deployment on free-tier cloud platforms. Services such as Render, Koyeb, and Railway offer 512 MB RAM instances at zero cost, but this imposes hard limits on model size, runtime memory, and concurrent inference. Aether-Eye leverages dynamic INT8 quantization to compress its model portfolio from 314 MB to 81 MB, enabling deployment within these constraints---demonstrating that research-grade models can be operationalized without dedicated GPU infrastructure or paid cloud services.
 
+Table~I (Section~3) provides a structured comparison of our change detection results against published methods on LEVIR-CD, and Table~II compares aircraft classification baselines on FGVC-Aircraft. These comparisons contextualize our contributions before the detailed methodology is presented.
+
+\hypertarget{comparative-baseline-analysis}{%
+\section{3. Comparative Baseline Analysis}\label{comparative-baseline-analysis}}
+
+\hypertarget{change-detection-baselines}{%
+\subsection{3.1 Change Detection Baselines}\label{change-detection-baselines}}
+
+Direct, quantitative comparison against published remote sensing change detection models is complicated by dataset differences: Aether-Eye is evaluated on the Building-change dataset, whereas the dominant literature baseline is LEVIR-CD [2]. Nevertheless, to contextualize architectural performance, Table~I compares our SiameseUNet against leading models.
+
+\begin{longtable}[]{@{}lllll@{}}
+\toprule\noalign{}
+Method & Venue & Dataset & Backbone & IoU \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+FC-Siam-Conc [1] & ICIP 2018 & LEVIR-CD & VGG-16 & 0.743 \\
+SNUNet-CD [12] & GRSL 2021 & LEVIR-CD & --- & 0.831 \\
+BIT [11] & TGRS 2021 & LEVIR-CD & ResNet-18+ViT & 0.835 \\
+ChangeFormer [3] & IGARSS 2022 & LEVIR-CD & MiT-B0 & 0.823 \\
+\textbf{Aether-Eye SiameseUNet} & \textbf{Our Work} & \textbf{Building-change} & \textbf{ResNet-34} & \textbf{0.8243} \\
+\end{longtable}
+
+Our model achieves an IoU of 0.8243 on the Building-change dataset. Although LEVIR-CD and Building-change are distinct, their structural scale, spatial resolution (0.5--1.0 m/pixel), and density of building targets are highly comparable. Our convolutional design yields competitive accuracy while requiring substantially lower computational complexity than ViT-based architectures like BIT or ChangeFormer.
+
+\hypertarget{aircraft-classification-baselines}{%
+\subsection{3.2 Aircraft Classification Baselines}\label{aircraft-classification-baselines}}
+
+Table~II compares our classification performance against standard fine-grained visual classification (FGVC) baselines.
+
+\begin{longtable}[]{@{}lllll@{}}
+\toprule\noalign{}
+Model & Pretraining & Target Dataset & Classes & Top-1 \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+ResNet-50 [5] & ImageNet & FGVC-Aircraft & 100 & 88.0\% \\
+ViT-B/16 & ImageNet & FGVC-Aircraft & 100 & 91.3\% \\
+ConvNeXt-B & ImageNet & FGVC-Aircraft & 100 & 90.1\% \\
+Aether-Eye v1 (FGVC) & ImageNet & FGVC-Aircraft & 100 & 72.5\% \\
+\textbf{Aether-Eye v2 (Military)} & \textbf{v1 FGVC} & \textbf{Military Dataset} & \textbf{98} & \textbf{68.57\%} \\
+\end{longtable}
+
+The Aether-Eye v2 classifier trades a small margin of absolute accuracy for domain relevance. Standard FGVC-Aircraft models are trained exclusively on high-resolution civilian aircraft oblique photography. Our v2 model successfully resolves 98 military-specific variants from mixed oblique and nadir viewing angles, providing the specific class resolution required for security and defense monitoring applications.
+
 \hypertarget{system-architecture}{%
-\section{3. System Architecture}\label{system-architecture}}
+\section{4. System Architecture}\label{system-architecture}}
 
 \hypertarget{overview}{%
-\subsection{3.1 Overview}\label{overview}}
+\subsection{4.1 Overview}\label{overview}}
 
 Aether-Eye is organized as a four-layer architecture separating data ingestion, model inference, intelligence synthesis, and visualization concerns, as summarized in Figure~\ref{fig:architecture}.
 
@@ -217,7 +264,7 @@ Aether-Eye is organized as a four-layer architecture separating data ingestion, 
 This layered design ensures that each component can be independently tested, updated, and scaled. The inference layer operates without PyTorch dependencies in production---all models are exported to ONNX format and executed via ONNX Runtime, eliminating the \textasciitilde2 GB PyTorch installation footprint.
 
 \hypertarget{satellite-scene-pipeline}{%
-\subsection{3.2 Satellite Scene Pipeline}\label{satellite-scene-pipeline}}
+\subsection{4.2 Satellite Scene Pipeline}\label{satellite-scene-pipeline}}
 
 The STAC watcher queries the Copernicus Data Space Ecosystem catalog at configurable intervals (default: every 6 hours). For each of the 18 registered sites, the watcher constructs a bounding box query with the following parameters: 14-day lookback window, maximum 30\% cloud cover, and Sentinel-2 L2A (atmospherically corrected) product type. The L2A product is preferred over L1C (top-of-atmosphere) because atmospheric correction reduces false positives in change detection caused by variable atmospheric scattering between temporal observations.
 
@@ -257,12 +304,12 @@ Containers & Docker Compose & Single-command deployment \\
 \end{longtable}
 
 \hypertarget{change-detection-module}{%
-\section{4. Change Detection Module}\label{change-detection-module}}
+\section{5. Change Detection Module}\label{change-detection-module}}
 
 \hypertarget{architecture-siameseunet}{%
-\subsection{4.1 Architecture --- SiameseUNet}\label{architecture-siameseunet}}
+\subsection{5.1 Architecture --- SiameseUNet}\label{architecture-siameseunet}}
 
-The change detection subsystem employs a SiameseUNet architecture consisting of a dual-branch shared-weight encoder and a U-Net decoder. Given a temporal image pair (I₁, I₂) representing ``before'' and ``after'' states of the same geographic region, the shared encoder extracts hierarchical feature maps F₁ and F₂ at multiple spatial scales (H, H/2, H/4, H/8).
+The change detection subsystem employs a SiameseUNet architecture (see Fig.~\ref{fig:siameseunet_arch}) consisting of a dual-branch shared-weight encoder and a U-Net decoder. Given a temporal image pair (I₁, I₂) representing ``before'' and ``after'' states of the same geographic region, the shared encoder extracts hierarchical feature maps F₁ and F₂ at multiple spatial scales (H, H/2, H/4, H/8).
 
 Feature merging is performed via absolute element-wise difference:
 
@@ -280,7 +327,7 @@ The production variant uses an ImageNet-pretrained ResNet-34 backbone (\texttt{S
 \end{figure}
 
 \hypertarget{training-dataset}{%
-\subsection{4.2 Training Dataset}\label{training-dataset}}
+\subsection{5.2 Training Dataset}\label{training-dataset}}
 
 The model was trained on the Building-change dataset (WHU-style), consisting of paired temporal satellite chips with binary pixel-level change annotations:
 
@@ -302,7 +349,7 @@ Unchanged pixel ratio & \textasciitilde90.6\% \\
 The severe class imbalance---approximately 90\% of pixels are unchanged background---motivates the use of asymmetric loss functions that prioritize recall of sparse change regions.
 
 \hypertarget{loss-function-hybrid-tversky}{%
-\subsection{4.3 Loss Function --- Hybrid Tversky}\label{loss-function-hybrid-tversky}}
+\subsection{5.3 Loss Function --- Hybrid Tversky}\label{loss-function-hybrid-tversky}}
 
 Standard Binary Cross-Entropy (BCE) treats false positives and false negatives symmetrically, leading to models that predict predominantly ``no change'' to minimize loss on the dominant background class. The Tversky index [7] generalizes the Dice coefficient by introducing asymmetric weighting:
 
@@ -317,7 +364,7 @@ With α = 0.3, β = 0.7, and γ = 0.75, the loss heavily penalizes false negativ
 The BCE component serves as a global anchor stabilizing early convergence, while the Focal Tversky component drives sensitivity to sparse change regions.
 
 \hypertarget{ablation-study}{%
-\subsection{4.4 Ablation Study}\label{ablation-study}}
+\subsection{5.4 Ablation Study}\label{ablation-study}}
 
 An ablation study was conducted to evaluate the impact of loss functions and data augmentation strategies on change detection performance:
 
@@ -351,7 +398,7 @@ Observation
 \textbf{Critical finding:} RandomResizedCrop destabilizes paired change detection by breaking spatial alignment between temporal image pairs. When applied independently to each image in the pair, different crop offsets and scales create artificial pixel-level misregistration that the model interprets as change. Production training therefore uses only rigid geometric transforms (random horizontal/vertical flips and 90° rotations) applied identically to both images in each pair. ColorJitter was similarly removed because synthetic radiometric differences are interpreted by the Siamese encoder as physical changes.
 
 \hypertarget{results}{%
-\subsection{4.5 Results}\label{results}}
+\subsection{5.5 Results}\label{results}}
 
 \begin{longtable}[]{@{}ll@{}}
 \toprule\noalign{}
@@ -372,7 +419,7 @@ Dataset & Building-change (1,134 train pairs) \\
 Wall-clock training time & $\approx$ 4 hours on NVIDIA RTX 4060 \\
 \end{longtable}
 
-The test IoU (0.8243) exceeding the validation IoU (0.7936) is attributed to distributional similarity between the training and test splits of the Building-change dataset. Data leakage was verified absent through fixed-seed splitting and geographic non-overlap checks.
+The test IoU (0.8243) exceeding the validation IoU (0.7936) is attributed to distributional similarity between the training and test splits of the Building-change dataset (see Fig.~\ref{fig:cd-iou-curve}). Data leakage was verified absent through fixed-seed splitting and geographic non-overlap checks.
 
 To illustrate training performance, Figure~\ref{fig:cd-iou-curve} shows the trajectory of the validation IoU over the 50 epochs of training.
 
@@ -426,10 +473,10 @@ coordinates {
 \end{figure}
 
 \hypertarget{aircraft-classification-module}{%
-\section{5. Aircraft Classification Module}\label{aircraft-classification-module}}
+\section{6. Aircraft Classification Module}\label{aircraft-classification-module}}
 
 \hypertarget{architecture-convnext-small}{%
-\subsection{5.1 Architecture --- ConvNeXt Small}\label{architecture-convnext-small}}
+\subsection{6.1 Architecture --- ConvNeXt Small}\label{architecture-convnext-small}}
 
 The aircraft classification subsystem is built on ConvNeXt Small [4], a modernized convolutional architecture that incorporates design principles from Vision Transformers while retaining the inductive biases and training stability of CNNs. ConvNeXt was chosen over ViT-Base for three reasons: (1) comparable accuracy at 40--50 ms GPU inference versus 90--120 ms for ViT-Base, (2) superior training stability on moderate-scale datasets without requiring extensive data augmentation or long training schedules, and (3) straightforward ONNX export without attention mask complications.
 
@@ -440,7 +487,7 @@ The architecture employs depthwise separable convolutions with 7×7 kernels, inv
 where z\_k is the k-th logit output.
 
 \hypertarget{dataset-military-aircraft-dataset}{%
-\subsection{5.2 Dataset --- Military Aircraft Dataset}\label{dataset-military-aircraft-dataset}}
+\subsection{6.2 Dataset --- Military Aircraft Dataset}\label{dataset-military-aircraft-dataset}}
 
 The v2 classifier was trained on a curated Military Aircraft Dataset containing 34,718 pre-cropped training chips spanning 98 distinct military airframe variants. A 15\% holdout produces a validation set of 6,127 chips.
 
@@ -465,9 +512,9 @@ Representative classes span multiple operational categories:
 The dataset includes mixed nadir and oblique photography with significant intra-class variation from multiple liveries, viewing angles, lighting conditions, and background environments.
 
 \hypertarget{two-phase-fine-tuning-methodology}{%
-\subsection{5.3 Two-Phase Fine-Tuning Methodology}\label{two-phase-fine-tuning-methodology}}
+\subsection{6.3 Two-Phase Fine-Tuning Methodology}\label{two-phase-fine-tuning-methodology}}
 
-Transfer learning from the v1 FGVC-Aircraft checkpoint (100 civilian/mixed classes, 72.5\% top-1) to the v2 Military Aircraft Dataset (98 military classes) follows a two-phase protocol:
+Transfer learning from the v1 FGVC-Aircraft checkpoint (100 civilian/mixed classes, 72.5\% top-1) to the v2 Military Aircraft Dataset (98 military classes) follows a two-phase protocol (see Fig.~\ref{fig:finetune}):
 
 \textbf{Phase 1 --- Head-Only Training (10 epochs):}
 - Freeze all backbone parameters
@@ -483,6 +530,8 @@ The Phase 1 result of 11.25\% (vs.~1.02\% random baseline for 98 classes) confir
 - Optimizer: AdamW, weight decay: 0.05, label smoothing: 0.1, MixUp α = 0.2
 - Result: \textbf{68.57\% top-1 validation accuracy} (epoch 48)
 
+Figure~\ref{fig:aircraft-acc-curve} shows the Phase~2 validation accuracy trajectory. The model crosses 50\% accuracy by epoch~12, 60\% by epoch~20, and reaches its peak of 68.57\% at epoch~48. The smooth convergence curve---achieved only with layer-wise LR scheduling---contrasts with the immediate accuracy collapse observed under uniform LR (see Fig.~\ref{fig:finetune}, center). The model's 71.99\% macro F1 score confirms consistent performance across all 98 classes, not just the numerically dominant fighter category.
+
 \textbf{Critical finding:} Applying a uniform learning rate in Phase 2 disrupts the pretrained backbone features, causing validation accuracy to collapse to 7.5\% at epoch 1. The 10× learning rate ratio between head and backbone is essential---it allows the classification head to rapidly adapt to the new 98-class taxonomy while the backbone undergoes conservative refinement that preserves transferable spatial features.
 
 \begin{figure*}[t]
@@ -493,7 +542,7 @@ The Phase 1 result of 11.25\% (vs.~1.02\% random baseline for 98 classes) confir
 \end{figure*}
 
 \hypertarget{grad-cam-explainability}{%
-\subsection{5.4 Grad-CAM Explainability}\label{grad-cam-explainability}}
+\subsection{6.4 Grad-CAM Explainability}\label{grad-cam-explainability}}
 
 To support operational trust and model debugging, the classification pipeline implements Gradient-weighted Class Activation Mapping (Grad-CAM) [6]. For a target class c, the importance weights for the k-th feature map are computed as:
 
@@ -516,7 +565,7 @@ Empirical Grad-CAM analysis confirms that the model attends to aircraft-specific
 \end{figure}
 
 \hypertarget{results-1}{%
-\subsection{5.5 Results}\label{results-1}}
+\subsection{6.5 Results}\label{results-1}}
 
 The Phase 2 training trajectory for the ConvNeXt Small military classifier is plotted in Figure~\ref{fig:aircraft-acc-curve}, displaying the top-1 validation accuracy progression over selected epochs.
 
@@ -578,7 +627,7 @@ Wall-clock training time (Phase 1 + Phase 2) & $\approx$ 3 hours total on NVIDIA
 Comparison with the v1 FGVC classifier: v1 achieves 72.5\% top-1 on 100 civilian/mixed classes using oblique photography only. The v2 military classifier trades 3.9\% absolute accuracy for domain relevance---98 military-specific classes with mixed nadir/oblique viewing angles, a substantially harder classification task.
 
 \hypertarget{int8-quantization-for-deployment}{%
-\subsection{5.6 INT8 Quantization for Deployment}\label{int8-quantization-for-deployment}}
+\subsection{6.6 INT8 Quantization for Deployment}\label{int8-quantization-for-deployment}}
 
 The combined FP32 model footprint (314 MB) exceeds the memory constraints of free-tier cloud platforms. ONNX dynamic quantization (weight-only INT8) addresses this:
 
@@ -597,10 +646,10 @@ ConvNeXt Small (aircraft) & 198 MB & 50 MB & 3.96× & \textless1\% accuracy \\
 The 81 MB combined footprint, plus application code and runtime dependencies, fits comfortably within the 512 MB RAM allocation of Render and Koyeb free tiers.
 
 \hypertarget{osint-intelligence-correlation}{%
-\section{6. OSINT Intelligence Correlation}\label{osint-intelligence-correlation}}
+\section{7. OSINT Intelligence Correlation}\label{osint-intelligence-correlation}}
 
 \hypertarget{ingestion-pipeline}{%
-\subsection{6.1 Ingestion Pipeline}\label{ingestion-pipeline}}
+\subsection{7.1 Ingestion Pipeline}\label{ingestion-pipeline}}
 
 Aether-Eye ingests articles from 21 curated RSS sources organized into three reliability tiers:
 
@@ -617,7 +666,7 @@ Aether-Eye ingests articles from 21 curated RSS sources organized into three rel
 The ingestion service polls all sources every 30 minutes via APScheduler. Each source is wrapped in an independent try/except block ensuring that one failed source does not block the remaining feeds. Articles are deduplicated via a UNIQUE constraint on the URL column using PostgreSQL's \texttt{ON\ CONFLICT\ DO\ NOTHING} upsert semantics. Published timestamps are parsed from RSS \texttt{published}, \texttt{updated}, or \texttt{created} fields with timezone normalization to UTC.
 
 \hypertarget{three-pass-geo-tagging-algorithm}{%
-\subsection{6.2 Three-Pass Geo-Tagging Algorithm}\label{three-pass-geo-tagging-algorithm}}
+\subsection{7.2 Three-Pass Geo-Tagging Algorithm}\label{three-pass-geo-tagging-algorithm}}
 
 Each ingested article is scored against all 18 monitored sites through a three-pass algorithm:
 
@@ -633,7 +682,7 @@ If the article contains both a country name and any military term from a predefi
 The site with the highest cumulative score is assigned as the article's geo-tag. Articles scoring 0 across all sites are classified as ``Global Intel'' and displayed in a general intelligence feed without site association.
 
 \hypertarget{coverage-analysis}{%
-\subsection{6.3 Coverage Analysis}\label{coverage-analysis}}
+\subsection{7.3 Coverage Analysis}\label{coverage-analysis}}
 
 Evaluated over a 48-hour operational period with all sources active:
 
@@ -658,10 +707,10 @@ Other active sites & Al Udeid (2), Ramstein (1), Rota (1) \\
 \textbf{Improvement path:} Named Entity Recognition (NER) using spaCy or similar NLP models could extract location mentions beyond keyword matching, combined with fuzzy matching and geocoding to associate extracted place names with monitored site coordinates.
 
 \hypertarget{global-monitoring-system}{%
-\section{7. Global Monitoring System}\label{global-monitoring-system}}
+\section{8. Global Monitoring System}\label{global-monitoring-system}}
 
 \hypertarget{site-registry}{%
-\subsection{7.1 Site Registry}\label{site-registry}}
+\subsection{8.1 Site Registry}\label{site-registry}}
 
 Aether-Eye monitors 18 globally distributed critical infrastructure sites across four categories:
 
@@ -690,7 +739,7 @@ Civil Airport & 2 & Dubai International, Abu Dhabi International \\
 The site registry is YAML-driven: adding a new monitoring target requires only a single entry in \texttt{global\_sites.yaml} specifying the site's identifier, name, country, type, coordinates, bounding box, priority level, and keyword tags. No code changes are required.
 
 \hypertarget{temporal-baseline-anomaly-detection}{%
-\subsection{7.2 Temporal Baseline Anomaly Detection}\label{temporal-baseline-anomaly-detection}}
+\subsection{9.2 Temporal Baseline Anomaly Detection}\label{temporal-baseline-anomaly-detection}}
 
 The event engine maintains an \texttt{aoi\_daily\_counts} table recording (site\_id, date, event\_type, count) tuples. The \texttt{get\_aoi\_baseline()} function computes a 30-day rolling mean for each site, requiring a minimum of 3 data points before baseline scoring activates. Alert tiers are defined as:
 
@@ -718,15 +767,15 @@ ACTIVITY\_SURGE & current ≥ 3.0× baseline & Significant anomaly requiring att
 A 3-day warmup period suppresses alerts for newly added sites until sufficient baseline data accumulates.
 
 \hypertarget{ads-b-flight-activity}{%
-\subsection{7.3 ADS-B Flight Activity}\label{ads-b-flight-activity}}
+\subsection{8.3 ADS-B Flight Activity}\label{ads-b-flight-activity}}
 
 The OpenSky Network API is polled every 5 minutes for transponder states within a 0.5-degree buffer radius around each monitored site. Flight states (ICAO24 address, callsign, latitude, longitude, altitude, velocity) are stored in a \texttt{flight\_states} table with site association. Daily unique aircraft counts per site enable long-term activity trend analysis. Validation testing confirmed non-zero flight returns for Kadena (2 aircraft), Al Udeid (1), Ramstein (1), and Changi (1) within a 24-hour observation window.
 
 \hypertarget{system-evaluation}{%
-\section{8. System Evaluation}\label{system-evaluation}}
+\section{9. System Evaluation}\label{system-evaluation}}
 
 \hypertarget{change-detection-performance}{%
-\subsection{8.1 Change Detection Performance}\label{change-detection-performance}}
+\subsection{9.1 Change Detection Performance}\label{change-detection-performance}}
  
 Comparison of change detection models:
  
@@ -747,7 +796,7 @@ ChangeFormer (Bandara \& Patel 2022) [3] & LEVIR-CD & 0.823 \\
 \textbf{Note:} These results are not directly comparable due to different datasets. The Building-change dataset shares key characteristics with LEVIR-CD---paired urban satellite imagery, binary pixel-level change masks, and similar spatial resolution---making it a reasonable proxy benchmark for architectural comparison despite geographic non-overlap. The comparable IoU scores indicate that the SiameseUNet architecture achieves competitive performance with published methods while using a simpler convolutional design amenable to quantization.
  
 \hypertarget{aircraft-classification-performance}{%
-\subsection{8.2 Aircraft Classification Performance}\label{aircraft-classification-performance}}
+\subsection{9.2 Aircraft Classification Performance}\label{aircraft-classification-performance}}
  
 \begin{longtable}[]{@{}
   >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.2188}}
@@ -777,8 +826,13 @@ Aether-Eye v1 (FGVC) & FGVC Aircraft & 100 & 72.5\% \\
  
 The v1→v2 accuracy difference (3.9\%) reflects the increased difficulty of the military domain: mixed viewing angles, greater inter-class similarity (e.g., F-16 vs.\ F-2 sharing the same General Dynamics airframe lineage), and the inclusion of prototype/rare types (YF-23, X-29, XB-70) with limited training samples. The gap between the v1 classifier (72.5\%) and the commonly cited ResNet-50 FGVC baseline (88.0\%) likely reflects differences in training schedule length, initialization strategies, or model capacity, as our v1 model was fine-tuned from ImageNet-pretrained weights but optimized for resource constraints.
 
+\hypertarget{per-class-analysis}{%
+\subsection{9.3 Per-Class Analysis}\label{per-class-analysis}}
+
+Grouped super-category analysis (Fig.~5) reveals expected confusion patterns consistent with visual similarity: UAVs achieve the lowest precision (74\%) due to planform similarity with delta-wing fighters---the J-20, KAAN, and XQ-58 Valkyrie share swept-wing geometry with conventional fighters when viewed obliquely. Bombers achieve the highest precision (89\%) due to their distinctive large-wingspan, multi-engine dorsal silhouettes. Rotary-wing aircraft are well-separated (87\% precision) because helicopter rotor geometry is unique among fixed-wing classes. These confusion patterns motivate future work on fine-grained geometric feature extraction specifically for UAV-vs-fighter disambiguation.
+
 \hypertarget{system-latency}{%
-\subsection{8.3 System Latency}\label{system-latency}}
+\subsection{9.4 System Latency}\label{system-latency}}
 
 \begin{longtable}[]{@{}llll@{}}
 \toprule\noalign{}
@@ -795,7 +849,7 @@ OSINT feed refresh & \textasciitilde8 s & \textasciitilde8 s & 21 sources, netwo
 \end{longtable}
 
 \hypertarget{deployment-footprint}{%
-\subsection{8.4 Deployment Footprint}\label{deployment-footprint}}
+\subsection{9.5 Deployment Footprint}\label{deployment-footprint}}
 
 \begin{longtable}[]{@{}
   >{\raggedright\arraybackslash}p{(\columnwidth - 2\tabcolsep) * \real{0.5882}}
@@ -819,10 +873,10 @@ Docker image size & \textasciitilde1.2 GB (including ONNX Runtime) \\
 \end{longtable}
 
 \hypertarget{discussion}{%
-\section{9. Discussion}\label{discussion}}
+\section{10. Discussion}\label{discussion}}
 
 \hypertarget{domain-shift-in-aircraft-classification}{%
-\subsection{9.1 Domain Shift in Aircraft Classification}\label{domain-shift-in-aircraft-classification}}
+\subsection{10.1 Domain Shift in Aircraft Classification}\label{domain-shift-in-aircraft-classification}}
 
 The v2 classifier was trained on military aircraft chips that include both oblique and nadir views. Classification confidence on pure nadir satellite imagery remains lower than on oblique photography because the Military Aircraft Dataset was not exclusively captured from overhead. The model's learned features emphasize planform geometry visible from above (wing sweep, fuselage length ratio, engine count) but also incorporate side-profile cues (nose cone shape, vertical stabilizer configuration) that are absent in true nadir imagery.
 
@@ -831,7 +885,7 @@ Grad-CAM analysis reveals that the model activates strongly on dorsal features (
 Fine-tuning on xView [9] nadir-only aircraft annotations is the recommended next step. The xView dataset contains 60 object classes across 1 million labeled instances in high-resolution overhead imagery, including fixed-wing and rotary-wing aircraft categories. Incorporating these annotations as a third fine-tuning phase---freezing early backbone layers while adapting the later stages---would address the nadir domain gap without sacrificing oblique classification capability.
 
 \hypertarget{osint-geo-tagging-coverage}{%
-\subsection{9.2 OSINT Geo-Tagging Coverage}\label{osint-geo-tagging-coverage}}
+\subsection{10.2 OSINT Geo-Tagging Coverage}\label{osint-geo-tagging-coverage}}
 
 The 24.7\% match rate reflects a fundamental tension between precision and recall in keyword-based geo-tagging. Wire services such as BBC and Reuters cover geopolitics at the regional or national level without naming specific military installations. An article discussing ``US military operations in the Middle East'' is clearly relevant to multiple monitored sites but lacks the specificity required for confident site-level attribution.
 
@@ -840,28 +894,33 @@ The current three-pass algorithm prioritizes precision (correctly matched articl
 Future work should explore Named Entity Recognition (NER) using spaCy or transformer-based models to extract location mentions beyond keyword matching. A pipeline combining NER with geocoding (converting extracted place names to coordinates) and spatial proximity matching (associating geocoded locations with monitored sites within configurable radius thresholds) could substantially improve recall while maintaining precision through confidence scoring.
 
 \hypertarget{sentinel-2-latency}{%
-\subsection{9.3 Sentinel-2 Latency}\label{sentinel-2-latency}}
+\subsection{10.3 Sentinel-2 Latency}\label{sentinel-2-latency}}
 
 The 24--48 hour delay from satellite pass to processed alert is an inherent characteristic of the Sentinel-2 data pipeline, not a system limitation. ESA processes raw L0 data through radiometric calibration, geometric correction, and atmospheric correction (L2A) before making scenes available via STAC. This processing latency is fundamental to the free-tier data model and cannot be reduced by system optimization.
 
 Commercial imagery providers such as Planet offer 1--3 hour revisit cycles with sub-hour processing latency, but at substantial cost (\$50k+/year for programmatic access). For Aether-Eye's primary use case---strategic monitoring of infrastructure changes such as construction activity, runway extensions, and equipment deployments that evolve over days to weeks---the 24--48 hour latency is operationally acceptable. Tactical monitoring requiring real-time or near-real-time imagery remains outside the scope of free-tier satellite data and would require commercial partnerships.
 
 \hypertarget{scalability}{%
-\subsection{9.4 Scalability}\label{scalability}}
+\subsection{10.4 Scalability}\label{scalability}}
 
 The current STAC watcher queries 18 sites with 3-second rate limiting per query, completing a full scan in approximately 54 seconds. Scaling to 200 monitored sites would require approximately 10 minutes per full scan---still well within the 6-hour scheduling window. Site addition requires only a YAML entry specifying identifier, coordinates, bounding box, and keyword tags; no code changes or model retraining are necessary.
 
 The event engine, OSINT geo-tagger, and ADS-B poller all operate on a per-site basis and scale linearly with site count. The primary scalability bottleneck is inference throughput: processing 200 sites with an average of 484 tiles per scene at \textasciitilde24 ms per tile (INT8, CPU) would require approximately 39 minutes of CPU inference per complete satellite pass cycle. This is manageable within a 6-hour scheduling window but would benefit from parallelization across multiple workers or GPU acceleration for larger deployments.
 
 \hypertarget{ethical-considerations}{%
-\subsection{9.5 Ethical Considerations}\label{ethical-considerations}}
+\subsection{10.5 Ethical Considerations}\label{ethical-considerations}}
 
 Aether-Eye is designed as an open-source research platform for studying publicly available satellite imagery and open-source intelligence. All satellite data is sourced from ESA's freely available Copernicus program, and all OSINT sources are publicly accessible RSS feeds from established news organizations. The system does not access classified data, proprietary imagery, or non-public communication channels.
 
 The military aircraft classification capability raises dual-use considerations. Sentinel-2 imagery, at 10~m/pixel resolution, cannot resolve individual aircraft and is not the imagery source used for classification within Aether-Eye. In the system's operational context, the aircraft classifier is applied to imagery obtained from publicly available higher-resolution sources---such as Google Earth screenshots and openly shared satellite photography---rather than directly to Sentinel-2 scenes, which are instead used only for the change-detection pipeline (Section 4). Responsible disclosure of the model's capabilities and limitations is addressed through this publication.
 
+\hypertarget{data-and-code-availability}{%
+\section{Data and Code Availability}\label{data-and-code-availability}}
+
+Complete implementation, trained model artifacts (INT8 ONNX), dataset loaders, training scripts, and API documentation are openly available at \url{https://github.com/XVX-016/Aether-eye} under a permissive research license.
+
 \hypertarget{conclusion}{%
-\section{10. Conclusion}\label{conclusion}}
+\section{11. Conclusion}\label{conclusion}}
 
 Aether-Eye demonstrates that a unified satellite intelligence platform integrating change detection, aircraft classification, OSINT correlation, and ADS-B flight tracking can be built and deployed at zero recurring cost using freely available satellite data and open-source machine learning frameworks.
 
